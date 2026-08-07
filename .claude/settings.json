@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm dev*)",
+      "Bash(pnpm verify*)",
+      "Bash(pnpm lint*)",
+      "Bash(pnpm typecheck*)",
+      "Bash(pnpm test*)",
+      "Bash(pnpm e2e*)",
+      "Bash(pnpm build*)",
+      "Bash(pnpm install*)",
+      "Bash(pnpm migration-lint*)",
+      "Bash(pnpm db:new*)",
+      "Bash(pnpm db:types*)",
+      "Bash(pnpm db:types:local*)",
+      "Bash(pnpm seed-dev*)",
+      "Bash(pnpm exec supabase projects list*)",
+      "Bash(pnpm exec supabase orgs list*)",
+      "Bash(pnpm exec supabase migration list*)",
+      "Bash(pnpm exec wrangler whoami*)",
+      "Bash(pnpm exec wrangler deployments list*)",
+      "Bash(git status*)",
+      "Bash(git log*)",
+      "Bash(git diff*)",
+      "Bash(git add*)",
+      "Bash(git commit*)",
+      "Bash(node -v)",
+      "Bash(pnpm -v)",
+      "Bash(gh auth status*)"
+    ]
+  }
+}

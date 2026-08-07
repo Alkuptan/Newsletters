@@ -1,0 +1,40 @@
+/**
+ * Cloudflare Workers config (deployed via @opennextjs/cloudflare).
+ * Docs: https://developers.cloudflare.com/workers/wrangler/configuration/
+ *
+ * The /kickoff skill replaces "internal-tool-template" with your tool's name
+ * (kebab-case) in BOTH places: the worker "name" and the
+ * WORKER_SELF_REFERENCE service name must match.
+ */
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "internal-tool-template",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-07-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  // Keep the runtime in production mode so Next does not load .env.local on
+  // the Worker (which would leak local-only vars into process.env).
+  "vars": {
+    "NEXTJS_ENV": "production"
+  },
+  "assets": {
+    "binding": "ASSETS",
+    "directory": ".open-next/assets"
+  },
+  "images": {
+    // Cloudflare image optimization — see https://opennext.js.org/cloudflare/howtos/image
+    "binding": "IMAGES"
+  },
+  "services": [
+    {
+      // Self-reference service binding; the service name must match "name" above.
+      // See https://opennext.js.org/cloudflare/caching
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "internal-tool-template"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  },
+  "upload_source_maps": true
+}

@@ -1,0 +1,57 @@
+# Automated Claude review on every PR — the org-standard workflow (same as
+# elgouna-website / elgouna-app). Requires the CLAUDE_CODE_OAUTH_TOKEN repo
+# secret (the /setup skill reminds the user to ask the dev team for it; CI
+# skips this job gracefully if the secret is absent).
+name: Claude Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened]
+
+jobs:
+  claude-review:
+    runs-on: ubuntu-latest
+    # Skip gracefully (green, not red) until the dev team adds the
+    # CLAUDE_CODE_OAUTH_TOKEN repo secret — so a freshly scaffolded repo never
+    # shows a scary failing check.
+    env:
+      HAS_OAUTH: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        if: env.HAS_OAUTH == 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Code Review
+        if: env.HAS_OAUTH == 'true'
+        id: claude-review
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
+          plugins: 'code-review@claude-code-plugins'
+          prompt: |
+            /code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}
+
+            Additionally, this repo was scaffolded from Orascom's
+            internal-tool-template and is maintained by a non-developer via
+            Claude Code. Beyond normal review, specifically check and flag:
+            - server actions that deviate from the canonical envelope
+              (requireUser/requireRole → zod safeParse → permission check →
+              mutation → revalidatePath → Result<T>; never throw to client)
+            - any new table whose migration does not enable RLS + policies in
+              the same file
+            - RLS policies changed without the matching TypeScript permission
+              helper + unit test changing in the same PR (three-places rule)
+            - imports of @/lib/supabase/admin outside src/features/*/actions.ts
+            - edits to generated files (database.types.ts, components/ui/*)
+            - secrets or key-like strings anywhere in the diff
+            - weakened guardrails: removed tests, eslint-disable, @ts-ignore,
+              `as any`, disabled CI steps

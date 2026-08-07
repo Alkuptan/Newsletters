@@ -1,0 +1,51 @@
+# Supabase local development config.
+# Full reference: https://supabase.com/docs/guides/local-development/cli/config
+# /kickoff (Phase B) sets project_id to your tool's name BEFORE the first
+# `supabase start` — a stack started under the template name collides with
+# other template-derived projects on the same machine.
+project_id = "internal-tool-template"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+[studio]
+enabled = true
+port = 54323
+
+# Invite-only internal tool: public self-signup is DISABLED. Users arrive only
+# via the admin invite flow (auth.admin.inviteUserByEmail) or create-admin,
+# both of which use the service role and are unaffected by these flags.
+# IMPORTANT: the deployed cloud project must ALSO have signups turned off
+# (Authentication → Sign In / Providers → "Allow new users to sign up" = off).
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000/auth/callback"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+enable_signup = false
+
+# Email provider stays fully enabled (logins, password reset, invites all use
+# it). Public signup is blocked by the master [auth] enable_signup = false
+# above, not here — disabling it here would also disable email LOGIN.
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"

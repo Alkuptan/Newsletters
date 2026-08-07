@@ -1,0 +1,43 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm migration-lint
+      # Applied migrations are append-only: a PR may ADD migration files but
+      # never MODIFY or DELETE existing ones.
+      - name: migrations are append-only
+        if: github.event_name == 'pull_request'
+        run: |
+          changed=$(git diff --name-only --diff-filter=MD "origin/${{ github.base_ref }}"...HEAD -- supabase/migrations/ || true)
+          if [ -n "$changed" ]; then
+            echo "::error::These applied migrations were modified or deleted (append-only — fix forward with a new migration):"
+            echo "$changed"
+            exit 1
+          fi
+      # Bundle for Workers without deploying — catches Workers-incompatible
+      # code before it ever reaches a deploy. Dummy public env vars are fine:
+      # nothing connects during a build.
+      - name: build for Cloudflare (dry run)
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://ci-placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+        run: pnpm exec opennextjs-cloudflare build
