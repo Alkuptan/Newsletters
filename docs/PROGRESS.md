@@ -1019,3 +1019,39 @@ available where it was written. `docs/outlook-macro/README.md` lists exactly wha
 to report from the first run, and names the two things most likely to need
 adjusting: the inline picture sticking as inline, and a mailbox large enough that
 the previous newsletter falls outside the 3,000 most recent sent items.
+
+### Batch ten — the exports were rendering a stale design
+
+The owner reported the JPG, the PDF and the emailed copy coming out on an old
+design. It was not the exporters: it was the PAGE they render from.
+
+`saveTemplateDesign` called `revalidatePath("/units")`, which clears the list and
+nothing else — a dynamic child like `/units/<id>` keeps its cached copy. So opening
+a unit after changing a master served the previous theme, and every file rendered
+from that page inherited it. The fix is a route pattern with `type: "page"`, which
+is what the installed Next docs specify for a dynamic segment.
+
+**The same bug was in three more places**, one of them worse than the reported one:
+
+- the **sheet import** — an upload refreshed the list while every unit page kept the
+  previous sheet's progress, dates and money;
+- **opening or editing a cycle**, which sets the footer date on every newsletter and
+  the `{date}` in every covering email;
+- the **mail settings and CC rules**, which the unit page shows.
+
+Only reproducible in production: the dev server does not cache this, which is why
+it survived every local test. Proven on the live site by moving the Photos-only
+master's footer size to 29px and watching the unit page render 29px with no manual
+reload — and separately by changing the subject wording and seeing a unit pick it
+up and revert.
+
+**Two smaller things from the same report.** The picture sat after all the text; the
+wording now carries a `{newsletter}` marker saying where it goes, and 0016 places it
+between "kindly find attached" and "should you have any questions" — but only where
+the wording is still character-for-character the default, rather than a regex
+guessing at someone's sentence. The owner's live wording was untouched, so it moved
+automatically. And it was too big: the width is now a setting, defaulting to 500px,
+capping rather than fixing the width so a narrow reading pane shrinks it instead of
+scrolling sideways.
+
+`pnpm verify` green with **312 tests**; `pnpm e2e` green with **19**.

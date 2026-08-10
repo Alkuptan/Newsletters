@@ -53,6 +53,8 @@ export interface EmlMessage {
   attachments?: readonly EmlAttachment[];
   /** Stable per unit, so Outlook groups the conversation. Defaults to the subject. */
   threadTopic?: string;
+  /** Caps the inline picture's width in the message body. */
+  imageWidthPx?: number;
 }
 
 /** Base64 must be wrapped; some servers reject lines over 998 characters. */
@@ -94,26 +96,55 @@ function htmlEscape(text: string): string {
 }
 
 /**
- * The typed message as HTML, with the newsletter picture under it.
+ * Where the newsletter picture goes in the message.
+ *
+ * Put it mid-sentence-order — after "kindly find attached", before "should you
+ * have any questions" — rather than always at the bottom. Left out of the
+ * wording entirely, the picture goes last, which is what it did before this
+ * existed.
+ */
+export const NEWSLETTER_MARKER = "{newsletter}";
+
+/** How wide the picture is in the message, when nothing says otherwise. */
+export const DEFAULT_IMAGE_WIDTH_PX = 500;
+
+/**
+ * The typed message as HTML, with the newsletter picture in it.
  *
  * Deliberately plain: no styling beyond the font, because Outlook will add the
  * person's own signature underneath and a designed block above it looks wrong.
+ *
+ * `widthPx` caps the picture rather than setting it, so a narrow reading pane
+ * shrinks it further instead of forcing a sideways scroll.
  */
-export function bodyHtml(body: string, inlineContentId?: string): string {
-  const paragraphs = body
-    .split(/\n{2,}/)
-    .map((block) => `<p>${htmlEscape(block).replace(/\n/g, "<br>")}</p>`)
-    .join("\n");
+export function bodyHtml(
+  body: string,
+  inlineContentId?: string,
+  widthPx: number = DEFAULT_IMAGE_WIDTH_PX,
+): string {
+  const paragraphs = (text: string) =>
+    text
+      .split(/\n{2,}/)
+      .map((block) => block.trim())
+      .filter(Boolean)
+      .map((block) => `<p>${htmlEscape(block).replace(/\n/g, "<br>")}</p>`)
+      .join("\n");
 
   const picture = inlineContentId
-    ? `\n<p><img src="cid:${inlineContentId}" alt="Newsletter" style="width:100%;max-width:1000px;height:auto;border:0"></p>`
+    ? `<p><img src="cid:${inlineContentId}" alt="Newsletter" style="width:100%;max-width:${widthPx}px;height:auto;border:0"></p>`
     : "";
+
+  const [before, ...rest] = body.split(NEWSLETTER_MARKER);
+  const content =
+    rest.length > 0
+      ? // The marker says where. Anything after it follows the picture.
+        [paragraphs(before), picture, paragraphs(rest.join(""))]
+      : [paragraphs(body), picture];
 
   return [
     "<html><body>",
     '<div style="font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#000">',
-    paragraphs,
-    picture,
+    ...content.filter(Boolean),
     "</div>",
     "</body></html>",
   ].join("\n");
@@ -149,7 +180,7 @@ export function buildEml(message: EmlMessage): string {
   const related = "----newsletter-related-boundary";
 
   const attachments = message.attachments ?? [];
-  const html = bodyHtml(message.body, message.inline?.contentId);
+  const html = bodyHtml(message.body, message.inline?.contentId, message.imageWidthPx);
 
   const headers = [
     `To: ${message.to.map(safeHeader).join(", ")}`,

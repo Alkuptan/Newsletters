@@ -11,13 +11,7 @@
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/supabase/dal";
 import { createClient } from "@/lib/supabase/server";
-import {
-  RateLimitedError,
-  ValidationError,
-  fromError,
-  toResult,
-  type Result,
-} from "@/lib/errors";
+import { RateLimitedError, ValidationError, fromError, toResult, type Result } from "@/lib/errors";
 import { log } from "@/lib/log";
 import type { TablesUpdate } from "@/lib/supabase/database.types";
 import { createEditionSchema, updateEditionSchema } from "./schema";
@@ -59,9 +53,12 @@ export async function createEdition(input: unknown): Promise<Result<{ id: string
 
     log.info("edition opened", { editionId: data.id, footerDate: parsed.data.footerDate });
 
-    // Every newsletter's elapsed time is measured to this date.
+    // Every newsletter's elapsed time is measured to this date — and its footer
+    // date, and the covering email's {date}. So each unit's own page too, which
+    // "/units" does not cover: the dynamic children need the route pattern.
     revalidatePath("/editions");
     revalidatePath("/units");
+    revalidatePath("/units/[id]", "page");
     return toResult({ id: data.id });
   } catch (err) {
     return fromError(err);
@@ -91,6 +88,8 @@ export async function updateEdition(input: unknown): Promise<Result<null>> {
 
     revalidatePath("/editions");
     revalidatePath("/units");
+    // The footer label and date are on every newsletter, unit pages included.
+    revalidatePath("/units/[id]", "page");
     return toResult(null);
   } catch (err) {
     return fromError(err);

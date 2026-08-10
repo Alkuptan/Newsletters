@@ -45,6 +45,7 @@ export async function saveMailSettings(input: unknown): Promise<Result<null>> {
         subject_template: parsed.data.subjectTemplate,
         body_template: parsed.data.bodyTemplate,
         always_cc: parsed.data.alwaysCc,
+        image_width_px: parsed.data.imageWidthPx,
         updated_by: user.id,
       })
       .eq("id", true);
@@ -52,6 +53,9 @@ export async function saveMailSettings(input: unknown): Promise<Result<null>> {
 
     revalidatePath("/mail");
     revalidatePath("/units");
+    // The composed message is shown on each unit's own page, which "/units"
+    // does not cover — the dynamic children need the route pattern.
+    revalidatePath("/units/[id]", "page");
     return toResult(null);
   } catch (err) {
     return fromError(err);
@@ -99,6 +103,9 @@ export async function savePmRouting(input: unknown): Promise<Result<null>> {
 
     revalidatePath("/mail");
     revalidatePath("/units");
+    // The composed message is shown on each unit's own page, which "/units"
+    // does not cover — the dynamic children need the route pattern.
+    revalidatePath("/units/[id]", "page");
     return toResult(null);
   } catch (err) {
     return fromError(err);
@@ -120,6 +127,9 @@ export async function deletePmRouting(input: unknown): Promise<Result<null>> {
 
     revalidatePath("/mail");
     revalidatePath("/units");
+    // The composed message is shown on each unit's own page, which "/units"
+    // does not cover — the dynamic children need the route pattern.
+    revalidatePath("/units/[id]", "page");
     return toResult(null);
   } catch (err) {
     return fromError(err);

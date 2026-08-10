@@ -250,6 +250,7 @@ export type Database = {
           body_template: string;
           created_at: string;
           id: boolean;
+          image_width_px: number;
           subject_template: string;
           updated_at: string;
           updated_by: string | null;
@@ -259,6 +260,7 @@ export type Database = {
           body_template?: string;
           created_at?: string;
           id?: boolean;
+          image_width_px?: number;
           subject_template?: string;
           updated_at?: string;
           updated_by?: string | null;
@@ -268,6 +270,7 @@ export type Database = {
           body_template?: string;
           created_at?: string;
           id?: boolean;
+          image_width_px?: number;
           subject_template?: string;
           updated_at?: string;
           updated_by?: string | null;

@@ -115,7 +115,13 @@ function bytesToBase64(bytes: Uint8Array): string {
 export async function exportNewsletterEml(
   element: HTMLElement,
   view: NewsletterView,
-  message: { to: readonly string[]; cc: readonly string[]; subject: string; body: string },
+  message: {
+    to: readonly string[];
+    cc: readonly string[];
+    subject: string;
+    body: string;
+    imageWidthPx?: number;
+  },
 ): Promise<void> {
   const [{ buildEml, emlFileName }, dataUrl, { jsPDF }] = await Promise.all([
     import("./eml"),
@@ -151,6 +157,7 @@ export async function exportNewsletterEml(
       contentId: "newsletter",
     },
     attachments: [{ filename: `${base}.pdf`, mimeType: "application/pdf", base64: pdfBase64 }],
+    imageWidthPx: message.imageWidthPx,
   });
 
   const url = URL.createObjectURL(new Blob([eml], { type: "message/rfc822" }));

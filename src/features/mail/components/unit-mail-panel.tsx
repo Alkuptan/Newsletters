@@ -19,6 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { PreparedMail } from "@/lib/newsletter/mail";
 import type { NewsletterView } from "@/lib/newsletter/view-model";
 import { mailtoLink, outlookWebComposeLink, type SendHistory } from "@/lib/newsletter/outlook";
+import { withoutImageMarker } from "@/lib/newsletter/mail";
 import { setUnitSent } from "@/features/units/patch-actions";
 
 function CopyButton({
@@ -89,6 +90,7 @@ export function UnitMailPanel({
   editionId,
   sentThisCycle,
   history,
+  imageWidthPx,
   canEdit,
 }: {
   mail: PreparedMail;
@@ -101,13 +103,22 @@ export function UnitMailPanel({
   editionId: string | null;
   sentThisCycle: boolean;
   history: SendHistory;
+  /** How wide the newsletter picture is in the message body. */
+  imageWidthPx: number;
   canEdit: boolean;
 }) {
   const [body, setBody] = useState(mail.body);
   const [sent, setSent] = useState(sentThisCycle);
   const [pending, startTransition] = useTransition();
 
-  const compose = { to: mail.to, cc: mail.cc, subject: mail.subject, body };
+  /*
+    Two versions of the same message. The message FILE keeps the {newsletter}
+    marker, because that is what places the picture. Everything else — the links,
+    the copy buttons — cannot carry a picture at all, so the marker is stripped
+    rather than pasted into a client's email as the word "{newsletter}".
+  */
+  const plain = withoutImageMarker(body);
+  const compose = { to: mail.to, cc: mail.cc, subject: mail.subject, body: plain };
   const outlook = outlookWebComposeLink(compose);
   const mailto = mailtoLink(compose);
 
@@ -131,7 +142,13 @@ export function UnitMailPanel({
     setBuilding(true);
     try {
       const { exportNewsletterEml } = await import("@/lib/newsletter/raster");
-      await exportNewsletterEml(element, view, compose);
+      await exportNewsletterEml(element, view, {
+        to: mail.to,
+        cc: mail.cc,
+        subject: mail.subject,
+        body, // with the marker: it decides where the picture goes
+        imageWidthPx,
+      });
       toast.success("Message downloaded. Open it and Outlook will show it ready to send.");
     } catch (error) {
       // Rendering can fail on a photo that will not load; saying which step broke
@@ -162,7 +179,7 @@ export function UnitMailPanel({
     `To: ${mail.to.join("; ")}`,
     `Cc: ${mail.cc.join("; ")}`,
     "",
-    body,
+    plain,
   ].join("\n");
 
   return (
@@ -224,7 +241,7 @@ export function UnitMailPanel({
                 Undo my edits
               </Button>
             )}
-            <CopyButton label="Message" value={body} />
+            <CopyButton label="Message" value={plain} />
           </div>
         </div>
         <Textarea

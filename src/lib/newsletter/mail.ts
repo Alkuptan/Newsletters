@@ -25,7 +25,26 @@ export const MAIL_PLACEHOLDERS = [
   { token: "{unit}", describes: "the unit's name on the newsletter" },
   { token: "{date}", describes: "the edition date, e.g. 14 June 2026" },
   { token: "{pm}", describes: "the project manager's name" },
+  {
+    token: "{newsletter}",
+    describes: "where the newsletter picture sits in the message",
+  },
 ] as const;
+
+/**
+ * The wording with the picture marker taken out.
+ *
+ * For every route that cannot carry a picture — the copy buttons, the mailto and
+ * web-compose links. Leaving "{newsletter}" in would paste the word into a
+ * client's email. The blank line it leaves behind goes with it.
+ */
+export function withoutImageMarker(body: string): string {
+  return body
+    .split("{newsletter}")
+    .join("")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
 
 export interface MailFacts {
   /** The composed client line, e.g. "Mr. Gasser El Sayed Ibrahim". */

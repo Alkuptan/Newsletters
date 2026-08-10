@@ -138,6 +138,50 @@ describe("things that would corrupt the message", () => {
     expect(html).toContain("<p>New paragraph</p>");
   });
 
+  it("puts the picture where the marker is, not at the end", () => {
+    // The owner wants it after "kindly find attached" and above "should you have".
+    const html = bodyHtml(
+      "Kindly find attached the latest newsletter.\n\n{newsletter}\n\nShould you have any questions.",
+      "newsletter",
+    );
+    const picture = html.indexOf("<img");
+    expect(picture).toBeGreaterThan(html.indexOf("Kindly find attached"));
+    expect(picture).toBeLessThan(html.indexOf("Should you have"));
+    expect(html).not.toContain("{newsletter}");
+  });
+
+  it("still puts it last when the wording does not say where", () => {
+    const html = bodyHtml("Dear Sir,\n\nRegards.", "newsletter");
+    expect(html.indexOf("<img")).toBeGreaterThan(html.indexOf("Regards"));
+  });
+
+  it("leaves no empty paragraph where the marker was", () => {
+    const html = bodyHtml("One.\n\n{newsletter}\n\nTwo.", "newsletter");
+    expect(html).not.toContain("<p></p>");
+  });
+
+  it("caps the picture's width at the width asked for", () => {
+    expect(bodyHtml("x", "newsletter", 500)).toContain("max-width:500px");
+    expect(bodyHtml("x", "newsletter", 900)).toContain("max-width:900px");
+    // Always a maximum with a fluid width, so a narrow pane shrinks it instead
+    // of scrolling sideways.
+    expect(bodyHtml("x", "newsletter", 500)).toContain("width:100%");
+  });
+
+  it("defaults to half the original width", () => {
+    expect(bodyHtml("x", "newsletter")).toContain("max-width:500px");
+  });
+
+  it("carries the width through the whole message", () => {
+    expect(buildEml({ ...message, imageWidthPx: 700 })).toContain("max-width:700px");
+  });
+
+  it("removes the marker even when there is no picture to place", () => {
+    const html = bodyHtml("One.\n\n{newsletter}\n\nTwo.");
+    expect(html).not.toContain("{newsletter}");
+    expect(html).not.toContain("<img");
+  });
+
   it("omits the picture when there is none", () => {
     expect(bodyHtml("Just text")).not.toContain("<img");
     const eml = buildEml({ ...message, inline: undefined });

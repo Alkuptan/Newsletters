@@ -395,9 +395,15 @@ export async function importFollowUpSheet(input: unknown): Promise<Result<Import
       quotationsMissing,
     });
 
-    // 6. Every screen that renders these figures.
+    /*
+      6. Every screen that renders these figures — and that includes each unit's
+      own page, which "/units" does NOT cover. Without the route pattern, an
+      upload refreshed the list while every unit page kept showing the previous
+      sheet's progress, dates and money until its cache expired.
+    */
     revalidatePath("/units");
     revalidatePath("/import");
+    revalidatePath("/units/[id]", "page");
 
     // 7. Typed success envelope.
     return toResult({

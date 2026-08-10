@@ -46,6 +46,7 @@ export function MailSettingsEditor({
   const [subject, setSubject] = useState(settings.subjectTemplate);
   const [body, setBody] = useState(settings.bodyTemplate);
   const [alwaysCc, setAlwaysCc] = useState(settings.alwaysCc.join("\n"));
+  const [imageWidth, setImageWidth] = useState(String(settings.imageWidthPx));
   const [problem, setProblem] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -53,6 +54,8 @@ export function MailSettingsEditor({
   const [newCc, setNewCc] = useState("");
 
   const unknown = [...new Set([...unknownPlaceholders(subject), ...unknownPlaceholders(body)])];
+  // Shown at half scale: the preview box is narrower than a real reading pane.
+  const previewWidth = Math.max(80, (Number(imageWidth) || 500) / 2);
   const withoutRules = pmNames.filter(
     (name) =>
       !routing.some(
@@ -66,6 +69,7 @@ export function MailSettingsEditor({
       subjectTemplate: subject,
       bodyTemplate: body,
       alwaysCc: splitAddresses(alwaysCc),
+      imageWidthPx: Number(imageWidth),
     };
     const check = saveMailSettingsSchema.safeParse(payload);
     if (!check.success) {
@@ -164,8 +168,60 @@ export function MailSettingsEditor({
           <p className="text-xs font-medium">How it reads for a real unit</p>
           <div className="bg-muted space-y-2 rounded-md p-3 text-xs">
             <p className="font-medium">{fillTemplate(subject, EXAMPLE)}</p>
-            <p className="whitespace-pre-wrap">{fillTemplate(body, EXAMPLE)}</p>
+            {/*
+              Split on the marker so the preview shows the picture's PLACE
+              rather than the word "{newsletter}", which is what a client would
+              otherwise be shown.
+            */}
+            {fillTemplate(body, EXAMPLE)
+              .split("{newsletter}")
+              .map((chunk, index) => (
+                <div key={index}>
+                  {index > 0 && (
+                    <div
+                      className="text-muted-foreground mb-2 flex items-center justify-center rounded border border-dashed"
+                      style={{ width: previewWidth, maxWidth: "100%", height: previewWidth / 3 }}
+                    >
+                      the newsletter, {imageWidth}px wide
+                    </div>
+                  )}
+                  <p className="whitespace-pre-wrap">{chunk.trim()}</p>
+                </div>
+              ))}
+            {!body.includes("{newsletter}") && (
+              <div
+                className="text-muted-foreground flex items-center justify-center rounded border border-dashed"
+                style={{ width: previewWidth, maxWidth: "100%", height: previewWidth / 3 }}
+              >
+                the newsletter, {imageWidth}px wide — at the end
+              </div>
+            )}
           </div>
+        </div>
+
+        <div className="space-y-1">
+          <Label htmlFor="mail-image-width" className="text-xs">
+            How wide the newsletter is in the email
+          </Label>
+          <div className="flex items-center gap-2">
+            <Input
+              id="mail-image-width"
+              type="number"
+              min={200}
+              max={1400}
+              step={50}
+              value={imageWidth}
+              disabled={!canEdit || pending}
+              onChange={(event) => setImageWidth(event.target.value)}
+              className="h-8 w-28"
+            />
+            <span className="text-muted-foreground text-xs">pixels wide</span>
+          </div>
+          <p className="text-muted-foreground text-xs">
+            500 is about half a normal reading pane. It is a maximum, so a narrow window shrinks it
+            further rather than cutting it off. Only affects the picture in the email — the attached
+            PDF and the JPG are always full size.
+          </p>
         </div>
 
         <div className="space-y-1">

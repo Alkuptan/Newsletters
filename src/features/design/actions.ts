@@ -53,9 +53,19 @@ export async function saveTemplateDesign(input: unknown): Promise<Result<null>> 
 
     log.info("master design changed", { kind });
 
-    // Every newsletter reads this, so every screen that renders one.
+    /*
+      Every newsletter reads this, so every screen that renders one — INCLUDING
+      each unit's own page. `revalidatePath("/units")` clears the list only; the
+      dynamic children keep their cached copy, and a route pattern with type
+      "page" is the documented way to clear them all.
+
+      Getting this wrong is not subtle: the owner changed a master design, opened
+      a unit, and the newsletter — and therefore the JPG, the PDF and the emailed
+      copy — were all still the previous design.
+    */
     revalidatePath("/design");
     revalidatePath("/units");
+    revalidatePath("/units/[id]", "page");
     return toResult(null);
   } catch (err) {
     return fromError(err);

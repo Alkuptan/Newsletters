@@ -8,11 +8,14 @@ import "server-only";
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { DEFAULT_IMAGE_WIDTH_PX } from "@/lib/newsletter/eml";
 
 export interface MailSettings {
   subjectTemplate: string;
   bodyTemplate: string;
   alwaysCc: string[];
+  /** Caps the newsletter picture's width in the email body, in pixels. */
+  imageWidthPx: number;
 }
 
 export interface PmRoutingRule {
@@ -31,7 +34,7 @@ export async function getMailSettings(): Promise<MailSettings> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("mail_settings")
-    .select("subject_template, body_template, always_cc")
+    .select("subject_template, body_template, always_cc, image_width_px")
     .maybeSingle();
   if (error) throw error;
 
@@ -41,6 +44,7 @@ export async function getMailSettings(): Promise<MailSettings> {
       data?.body_template ??
       "Dear {client},\n\nKindly find attached the latest newsletter as of {date}.",
     alwaysCc: data?.always_cc ?? [],
+    imageWidthPx: data?.image_width_px ?? DEFAULT_IMAGE_WIDTH_PX,
   };
 }
 

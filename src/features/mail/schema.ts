@@ -40,6 +40,13 @@ export const saveMailSettingsSchema = z.object({
     .array(emailField)
     .max(50, "That is more than 50 people to copy on every unit.")
     .default([]),
+  // Bounds match the CHECK constraint in migration 0016.
+  imageWidthPx: z
+    .number()
+    .int()
+    .min(200, "Below 200 the newsletter is unreadable in an email.")
+    .max(1400, "Above 1400 it forces a sideways scroll in Outlook.")
+    .default(500),
 });
 export type SaveMailSettingsInput = z.infer<typeof saveMailSettingsSchema>;
 

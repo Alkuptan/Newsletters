@@ -11,6 +11,7 @@ import {
   prepareMail,
   recipientsFor,
   unknownPlaceholders,
+  withoutImageMarker,
 } from "@/lib/newsletter/mail";
 
 const facts = {
@@ -46,6 +47,30 @@ describe("filling the wording", () => {
 
   it("leaves ordinary text alone, braces included", () => {
     expect(fillTemplate("Cost {approx} 5%", facts)).toBe("Cost {approx} 5%");
+  });
+});
+
+describe("the picture marker", () => {
+  it("is a known placeholder, not reported as a mistake", () => {
+    expect(unknownPlaceholders("Dear {client},\n\n{newsletter}\n\nRegards")).toEqual([]);
+  });
+
+  it("is left in place by the substitution, because it is a position not a value", () => {
+    expect(fillTemplate("{unit}\n\n{newsletter}", facts)).toContain("{newsletter}");
+  });
+
+  it("is stripped for anything that cannot carry a picture", () => {
+    // A copy button or a mailto link would otherwise paste the literal word
+    // "{newsletter}" into a client's email.
+    expect(withoutImageMarker("One.\n\n{newsletter}\n\nTwo.")).toBe("One.\n\nTwo.");
+  });
+
+  it("takes its blank line with it rather than leaving a gap", () => {
+    expect(withoutImageMarker("One.\n\n{newsletter}\n\nTwo.")).not.toMatch(/\n{3,}/);
+  });
+
+  it("leaves wording that never used it untouched", () => {
+    expect(withoutImageMarker("One.\n\nTwo.")).toBe("One.\n\nTwo.");
   });
 });
 

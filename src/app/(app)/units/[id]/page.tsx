@@ -321,6 +321,7 @@ export default async function UnitPage({
               editionId={edition?.id ?? null}
               sentThisCycle={sentThisCycle}
               history={sendHistoryFrom(sentDates)}
+              imageWidthPx={mailSettings.imageWidthPx}
               canEdit={canEdit}
             />
           </div>
