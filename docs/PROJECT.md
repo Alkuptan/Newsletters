@@ -205,10 +205,42 @@ and the PDF come out already named `<Unit> Newsletter`; and the addressee list i
 worked out and shown for copying. Nothing leaves the building without a human
 seeing it, and no client address needs to be stored to make it work.
 
-The dev-team version is worth doing properly: a real provider, a per-cycle send
-log, a bounce report, an approval step before a batch goes out, and client
-contacts held wherever the company already holds them rather than a second copy
-here.
+**Revised 10 August 2026, after the owner answered the objections.** They send
+about ten a day, one at a time, from their own Orascom mailbox, already doing it
+by hand; they accept responsibility for a wrong send; and clicking each one
+individually keeps a human in front of every message. That answers the volume and
+the accountability concerns, and it leaves a purely technical blocker:
+
+**Sending as a person's own `@elgouna.com` address needs Orascom IT to enable one
+of three things. There is no self-service route.**
+
+| Route                                   | What it needs                             | Note                                                                                                                             |
+| --------------------------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Microsoft Graph `Mail.Send` (delegated) | an Entra app registration                 | the owner tried and got **401, "You don't have access"** — user app registration is off on the OrascomDH tenant                  |
+| SMTP AUTH on the mailbox                | an admin to switch it on for that mailbox | Microsoft disables SMTP AUTH tenant-wide by default; also means a password held as a Worker secret, which the tool should not do |
+| A sending service (Resend, SES…)        | SPF/DKIM DNS records on `elgouna.com`     | without them, mail claiming to be from `@elgouna.com` is spoofing: it lands in junk and harms the domain's reputation            |
+
+The first is the one to ask for. It sends **as the signed-in person**, needs no
+password anywhere, and the same app registration covers reading the unit photo
+folders and client contacts — so it is one IT request, not three.
+
+**Until then, what the tool does instead** gets it to one click without any of the
+above: an **Open in Outlook** button opens Outlook on the web with the To, Cc,
+subject and message already filled, from any machine rather than only the laptop.
+A URL cannot carry a file, so the JPG and the PDF are attached by hand. That is
+the only manual step left, and only the app registration removes it.
+
+**True threading also needs the tool to send.** Continuing an existing
+conversation means setting the `In-Reply-To`/`References` headers on a real
+message, which a compose link cannot do. What works today: keep each unit's
+subject byte-identical (`{unit} Newsletter`, the default) and Outlook groups that
+unit's newsletters under one conversation topic. Grouping by subject, not real
+threading — good enough to find the history, not the same thing.
+
+The dev-team version is worth doing properly: delegated Graph send, a per-unit
+send log with the message id so replies thread correctly, a bounce report, and
+client contacts held wherever the company already holds them rather than a second
+copy here.
 
 ### Pulling data out of the internal programme system
 

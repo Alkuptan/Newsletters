@@ -12,11 +12,13 @@
  * drafts nobody maintains. Edit, copy, send.
  */
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { PreparedMail } from "@/lib/newsletter/mail";
+import { mailtoLink, outlookWebComposeLink, type SendHistory } from "@/lib/newsletter/outlook";
+import { setUnitSent } from "@/features/units/patch-actions";
 
 function CopyButton({
   label,
@@ -73,16 +75,50 @@ function AddressLine({
   );
 }
 
+function formatSent(date: Date): string {
+  return date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+
 export function UnitMailPanel({
   mail,
+  unitId,
   unitName,
   pmName,
+  editionId,
+  sentThisCycle,
+  history,
+  canEdit,
 }: {
   mail: PreparedMail;
+  unitId: string;
   unitName: string;
   pmName: string | null;
+  /** Null when no cycle is open, in which case there is nothing to tick. */
+  editionId: string | null;
+  sentThisCycle: boolean;
+  history: SendHistory;
+  canEdit: boolean;
 }) {
   const [body, setBody] = useState(mail.body);
+  const [sent, setSent] = useState(sentThisCycle);
+  const [pending, startTransition] = useTransition();
+
+  const compose = { to: mail.to, cc: mail.cc, subject: mail.subject, body };
+  const outlook = outlookWebComposeLink(compose);
+  const mailto = mailtoLink(compose);
+
+  function markSent(next: boolean) {
+    if (!editionId) return;
+    startTransition(async () => {
+      const result = await setUnitSent({ unitId, editionId, sent: next });
+      if (result.ok) {
+        setSent(next);
+        toast.success(next ? "Recorded as sent for this cycle." : "No longer marked as sent.");
+      } else {
+        toast.error(result.error);
+      }
+    });
+  }
 
   const everything = [
     `Subject: ${mail.subject}`,
@@ -166,7 +202,65 @@ export function UnitMailPanel({
         </p>
       </div>
 
-      <CopyButton label="Everything" value={everything} />
+      <div className="space-y-2 border-t pt-3">
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" asChild>
+            {/*
+              Opens Outlook on the web with everything filled in, so this works
+              from any machine rather than only the laptop with Outlook installed.
+              A link cannot carry a file, so the two attachments are still added
+              by hand — see src/lib/newsletter/outlook.ts.
+            */}
+            <a href={outlook.url} target="_blank" rel="noopener noreferrer">
+              Open in Outlook
+            </a>
+          </Button>
+          <Button size="sm" variant="outline" asChild>
+            <a href={mailto.url}>Open in my mail program</a>
+          </Button>
+          <CopyButton label="Everything" value={everything} />
+        </div>
+
+        {outlook.truncated && (
+          <p className="text-xs text-amber-600 dark:text-amber-500">
+            The message is too long to fit in a link, so Outlook will open with it shortened. Use
+            &ldquo;Copy message&rdquo; and paste instead.
+          </p>
+        )}
+
+        <p className="text-muted-foreground text-xs">
+          Attach the JPG and the PDF yourself — a link cannot carry a file. Keep the subject exactly
+          as it is and Outlook groups each unit&apos;s newsletters into one conversation.
+        </p>
+      </div>
+
+      <div className="space-y-2 border-t pt-3">
+        {history.count === 0 ? (
+          <p className="text-muted-foreground text-xs">This unit has never been sent.</p>
+        ) : (
+          <p className="text-muted-foreground text-xs">
+            Sent {history.count} {history.count === 1 ? "time" : "times"}
+            {history.first && ` — first on ${formatSent(history.first)}`}
+            {history.last && history.count > 1 && `, latest on ${formatSent(history.last)}`}.
+          </p>
+        )}
+
+        {canEdit && editionId && (
+          <Button
+            size="sm"
+            variant={sent ? "outline" : "default"}
+            disabled={pending}
+            onClick={() => markSent(!sent)}
+          >
+            {pending ? "Saving…" : sent ? "Sent this cycle — undo" : "I have sent this one"}
+          </Button>
+        )}
+        {!editionId && (
+          <p className="text-muted-foreground text-xs">
+            Start a cycle to record what has been sent.
+          </p>
+        )}
+      </div>
     </div>
   );
 }

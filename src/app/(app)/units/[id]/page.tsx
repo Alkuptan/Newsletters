@@ -9,13 +9,20 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { requireSessionPage } from "@/lib/supabase/dal";
 import { canWriteUnit } from "@/features/units/permissions";
-import { currentPmAliases, getUnit, latestEdition } from "@/features/units/queries";
+import {
+  currentPmAliases,
+  getUnit,
+  latestEdition,
+  unitSentDates,
+  unitSentThisCycle,
+} from "@/features/units/queries";
 import { QuotationTickList } from "@/features/units/components/quotation-tick-list";
 import { UnitDetailsForm } from "@/features/units/components/unit-details-form";
 import { ClientEditor } from "@/features/units/components/client-editor";
 import { UnitMailPanel } from "@/features/mail/components/unit-mail-panel";
 import { getMailSettings, listPmRouting } from "@/features/mail/queries";
 import { prepareMail } from "@/lib/newsletter/mail";
+import { sendHistoryFrom } from "@/lib/newsletter/outlook";
 import { stageForUnit } from "@/lib/newsletter/stage";
 import { areaOfConcernBullets } from "@/lib/newsletter/area-of-concern";
 import type { Stage } from "@/lib/newsletter/types";
@@ -59,15 +66,21 @@ export default async function UnitPage({
   const unit = await getUnit(id);
   if (!unit) notFound();
 
-  const [aliases, edition, templates, neighbours, mailSettings, pmRouting] = await Promise.all([
-    currentPmAliases(),
-    latestEdition(),
-    getTemplateOverrides(),
-    unitNeighbours(id, filters),
-    getMailSettings(),
-    listPmRouting(),
-  ]);
+  const [aliases, edition, templates, neighbours, mailSettings, pmRouting, sentDates] =
+    await Promise.all([
+      currentPmAliases(),
+      latestEdition(),
+      getTemplateOverrides(),
+      unitNeighbours(id, filters),
+      getMailSettings(),
+      listPmRouting(),
+      unitSentDates(id),
+    ]);
   const canEdit = canWriteUnit(user, unit, aliases);
+
+  // Needs the edition id, so it cannot join the batch above. Skipped entirely
+  // when no cycle is open, because then there is nothing to have been sent in.
+  const sentThisCycle = edition ? await unitSentThisCycle(id, edition.id) : false;
 
   // Schedules on OTHER units doing the same kind of work, so one built for
   // "Unit Extension" can be copied here and re-dated. Only fetched for people
@@ -299,7 +312,16 @@ export default async function UnitPage({
 
           <div className="space-y-2 border-t pt-3">
             <h2 className="text-sm font-semibold">The email to send</h2>
-            <UnitMailPanel mail={mail} unitName={unit.display_name} pmName={unit.assigned_pm} />
+            <UnitMailPanel
+              mail={mail}
+              unitId={unit.id}
+              unitName={unit.display_name}
+              pmName={unit.assigned_pm}
+              editionId={edition?.id ?? null}
+              sentThisCycle={sentThisCycle}
+              history={sendHistoryFrom(sentDates)}
+              canEdit={canEdit}
+            />
           </div>
         </section>
       </div>

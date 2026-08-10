@@ -111,6 +111,36 @@ export async function getUnit(id: string): Promise<UnitDetail | null> {
 }
 
 /**
+ * When this unit's newsletter has gone out, across every cycle.
+ *
+ * Read from the per-cycle sent ticks rather than a second stored count, so
+ * re-sending a cycle or unticking one cannot leave the two disagreeing.
+ */
+export async function unitSentDates(unitId: string): Promise<string[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("edition_units")
+    .select("sent_at")
+    .eq("unit_id", unitId)
+    .not("sent_at", "is", null);
+  if (error) throw error;
+  return (data ?? []).map((row) => row.sent_at).filter((value): value is string => Boolean(value));
+}
+
+/** Whether this unit is already ticked as sent for the cycle in progress. */
+export async function unitSentThisCycle(unitId: string, editionId: string): Promise<boolean> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("edition_units")
+    .select("sent_at")
+    .eq("unit_id", unitId)
+    .eq("edition_id", editionId)
+    .maybeSingle();
+  if (error) throw error;
+  return Boolean(data?.sent_at);
+}
+
+/**
  * The PM name(s) the signed-in person answers to.
  *
  * Needed by the permission helpers, which are pure and take the aliases as an

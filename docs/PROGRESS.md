@@ -920,3 +920,45 @@ refuses the write underneath** (`42501` on inserting a Cc rule; the wording
 unchanged after a direct PATCH).
 
 **Still not deployed** — one Linux build covers batches six to eight together.
+
+## Batch nine — one click into Outlook, and a per-unit send record
+
+The owner answered the objections to sending rather than dropping the request:
+about ten a day, one at a time, from their own Orascom mailbox, already done by
+hand today, and they accept responsibility for a wrong send. That removes the
+volume and accountability concerns and leaves a purely technical blocker, now
+written up in `docs/PROJECT.md`: sending as a person's own `@elgouna.com` address
+needs Orascom IT to enable one of three things, and **the Entra app registration
+was already tried and refused (401)**. The one to ask for is delegated Microsoft
+Graph `Mail.Send` — it sends as the signed-in person, needs no password stored
+anywhere, and the same registration covers the photo folders and client contacts,
+so it is one IT request rather than three.
+
+**What was built, which needs none of that.** An **Open in Outlook** button opens
+Outlook on the web with the To, Cc, subject and message already filled — from any
+machine, which was the point, rather than only the laptop with Outlook installed.
+A second button hands it to whatever mail program the machine has. A URL cannot
+carry a file, so the JPG and the PDF are still attached by hand; that is the only
+step left and only the app registration removes it.
+
+Editing the message flows into the link, so a per-unit sentence survives the
+handover to Outlook. A message too long for a URL is shortened with the recipients
+kept intact — a half-typed message is recoverable, a missing client is not — and
+the panel says so and points at the copy button instead.
+
+**The send record** answers "first versus latest": read from the per-cycle sent
+ticks rather than stored again, so re-sending or unticking a cycle cannot leave two
+counts disagreeing. The panel reads "Sent 3 times — first on 14 Jun 2026, latest on
+07 Aug 2026", with one button to record this cycle's send.
+
+On threading: real threading needs `In-Reply-To`/`References` on a message the tool
+itself sends, which a compose link cannot do. Keeping each unit's subject
+byte-identical — `{unit} Newsletter`, the default — makes Outlook group that unit's
+newsletters under one conversation topic. Grouping by subject, not real threading,
+and the panel says which it is.
+
+`pnpm verify` green with **292 tests**; `pnpm e2e` green with **19**. Verified
+against the dev stack: the link carries both client addresses semicolon-separated,
+the standing CC list, the subject and a greeting naming both clients with their
+titles; an edit to the message reaches the link; and marking a unit sent survives a
+reload and reads back as "Sent 1 time — first on 10 Aug 2026".
