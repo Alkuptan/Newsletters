@@ -10,14 +10,14 @@ Works programme, on demand (weekly or bi-weekly, the owner's choice), and export
 it as **JPG, PDF and an editable PowerPoint slide**.
 
 Today this is assembled by hand in PowerPoint, one slide per unit, by copying
-numbers out of the *Follow-up sheet (Don't Delete).xlsm* and dragging photos in
+numbers out of the _Follow-up sheet (Don't Delete).xlsm_ and dragging photos in
 from OneDrive. The tool replaces that copying: refresh the Excel query, upload
 the sheet, and every unit's newsletter is already filled in — the owner reviews,
 adjusts the commentary, and exports.
 
 Version 1 covers **After Delivery** extra works only. Before Delivery uses a
 different sheet shape and a different dashboard layout; it is designed for but
-not built in v1 (see *Out of scope*).
+not built in v1 (see _Out of scope_).
 
 ### The pains v1 must remove
 
@@ -36,17 +36,17 @@ they can be switched on later without a rebuild, per the owner's plan to have
 every PM reach their own units and to give the board and upper management a
 read-only view.
 
-| Capability                                   | Admin | Project manager        | Viewer |
-| -------------------------------------------- | :---: | :--------------------: | :----: |
-| Upload / refresh the follow-up sheet         |  yes  |           no           |   no   |
-| See all units                                |  yes  |  own units only¹       |  yes   |
-| Tick which quotations a newsletter includes  |  yes  |     own units only     |   no   |
-| Build / edit a quotation's Gantt schedule    |  yes  |     own units only     |   no   |
-| Add or reorder a unit's photos               |  yes  |     own units only     |   no   |
-| Edit Area of Concern, unit display name, stage | yes |     own units only     |   no   |
-| Create a newsletter edition (a dated cycle)  |  yes  |           no           |   no   |
-| Export JPG / PDF / PPTX                      |  yes  |     own units only     |  yes   |
-| Manage users and settings                    |  yes  |           no           |   no   |
+| Capability                                     | Admin | Project manager | Viewer |
+| ---------------------------------------------- | :---: | :-------------: | :----: |
+| Upload / refresh the follow-up sheet           |  yes  |       no        |   no   |
+| See all units                                  |  yes  | own units only¹ |  yes   |
+| Tick which quotations a newsletter includes    |  yes  | own units only  |   no   |
+| Build / edit a quotation's Gantt schedule      |  yes  | own units only  |   no   |
+| Add or reorder a unit's photos                 |  yes  | own units only  |   no   |
+| Edit Area of Concern, unit display name, stage |  yes  | own units only  |   no   |
+| Create a newsletter edition (a dated cycle)    |  yes  |       no        |   no   |
+| Export JPG / PDF / PPTX                        |  yes  | own units only  |  yes   |
+| Manage users and settings                      |  yes  |       no        |   no   |
 
 ¹ "Own units" = units where the sheet's **Assigned PM** matches the signed-in
 person's name, as mapped in the people list.
@@ -55,7 +55,7 @@ person's name, as mapped in the people list.
 
 ### 1. Sheet upload
 
-One row per time the owner uploads *Follow-up sheet (Don't Delete).xlsm*.
+One row per time the owner uploads _Follow-up sheet (Don't Delete).xlsm_.
 
 - File name, uploaded by, uploaded at
 - Rows read, rows accepted, rows rejected (with reasons)
@@ -70,32 +70,34 @@ Concern text, display names, tick boxes).
 The subject of one newsletter. Created automatically from the sheet's `Unit`
 column; enriched by hand once.
 
-| Field                | Where it comes from                                     |
-| -------------------- | ------------------------------------------------------- |
-| Unit code            | sheet `Unit` (e.g. `CY-11`, `Ph4-Villa-2B`, `AH-56`)    |
-| Zone                 | sheet `Zone` (e.g. `Cyan`, `Phases`, `Ancient Hill`)    |
-| Display name         | auto-suggested from zone + code (`CY-11` → "Cyan 11"), editable, remembered |
-| Client name          | sheet **`Client Name`** — a new column the owner adds to the Power Query |
-| Assigned PM          | sheet `Assigned PM`                                     |
-| OneDrive folder link | typed once in the tool; photos are pulled from it       |
-| Current stage        | worked out from `Project Status`, overridable, remembered |
+| Field                | Where it comes from                                                                                                           |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Unit code            | sheet `Unit` (e.g. `CY-11`, `Ph4-Villa-2B`, `AH-56`)                                                                          |
+| Zone                 | sheet `Zone` (e.g. `Cyan`, `Phases`, `Ancient Hill`)                                                                          |
+| Display name         | auto-suggested from zone + code (`CY-11` → "Cyan 11"), editable, remembered                                                   |
+| Client name(s)       | sheet **`Client Name`** — a new column the owner adds to the Power Query. Several people in one cell, separated by `;` or `/` |
+| Client email(s)      | sheet **`Client Email`** — optional. Several addresses in one cell                                                            |
+| Who is named         | chosen in the tool per unit, plus a title each; remembered, and keyed by name so a sheet refresh cannot revert it             |
+| Assigned PM          | sheet `Assigned PM`                                                                                                           |
+| OneDrive folder link | typed once in the tool; photos are pulled from it                                                                             |
+| Current stage        | worked out from `Project Status`, overridable, remembered                                                                     |
 
 ### 3. Quotation
 
 One row per quote from the sheet. Read-only figures plus tool-owned extras.
 
-| Field                                    | Where it comes from                    |
-| ---------------------------------------- | -------------------------------------- |
-| Quote #, Invoice #                       | sheet                                  |
-| Value of Invoice                         | sheet `Value Of Invoice`               |
-| Scope of work                            | sheet (becomes Project Summary)        |
-| Progress %                               | sheet `Progress % Current`             |
-| Planned start date                       | sheet `Planned Start Date`             |
-| Latest finish date                       | sheet **`Max Contractual`**            |
-| Project status                           | sheet `Project Status`                 |
-| Notes                                    | sheet `Notes` (seeds Area of Concern)  |
-| Include in newsletter                    | ticked in the tool, remembered         |
-| Has a time schedule?                     | true once a Gantt schedule is built    |
+| Field                 | Where it comes from                   |
+| --------------------- | ------------------------------------- |
+| Quote #, Invoice #    | sheet                                 |
+| Value of Invoice      | sheet `Value Of Invoice`              |
+| Scope of work         | sheet (becomes Project Summary)       |
+| Progress %            | sheet `Progress % Current`            |
+| Planned start date    | sheet `Planned Start Date`            |
+| Latest finish date    | sheet **`Max Contractual`**           |
+| Project status        | sheet `Project Status`                |
+| Notes                 | sheet `Notes` (seeds Area of Concern) |
+| Include in newsletter | ticked in the tool, remembered        |
+| Has a time schedule?  | true once a Gantt schedule is built   |
 
 ### 4. Gantt schedule (one per quotation)
 
@@ -104,7 +106,7 @@ only and will never have a timeline. Marking a unit **photos only** stops it
 appearing in "still needs a timeline", which is otherwise indistinguishable from
 "nobody has built one yet". A schedule also records the quotation dates it was
 built against, so when the sheet moves a Planned Start or Max Contractual date
-the tool can say *this timeline no longer matches its quotation* — the Gantt
+the tool can say _this timeline no longer matches its quotation_ — the Gantt
 lives in the tool and does not follow the sheet on its own.
 
 Built by hand in the tool the first time, then saved and recalled every cycle;
@@ -169,20 +171,20 @@ Edition lifecycle
 
 Agreed rules, verified against all three sample newsletters:
 
-| Box on the dashboard  | Rule                                                                    |
-| --------------------- | ----------------------------------------------------------------------- |
-| Quotation References  | the ticked quotes' `Quote #`, comma separated                            |
-| Quotation Amount      | sum of `Value Of Invoice` across ticked quotes, rounded to whole LE      |
-| Project Summary       | the distinct `Scope of work` values of the ticked quotes                 |
-| Project Manager       | `Assigned PM` (the one covering the most money, if they differ)          |
-| Start Date            | **earliest** `Planned Start Date` across ticked quotes                   |
-| Finish Date           | **latest** `Max Contractual` across ticked quotes                        |
-| Duration              | calendar days from Start Date to Finish Date                             |
-| Actual Progress %     | money-weighted: Σ(progress × invoice value) ÷ Σ(invoice value)           |
-| Elapsed Time          | calendar days from Start Date to the edition's footer date, never below 0, never above Duration |
-| Status                | expected % = Elapsed ÷ Duration. Progress more than **5 points** above → **AHEAD**; more than 5 below → **BEHIND**; otherwise → **ON TRACK** |
-| Area of Concern       | the ticked quotes' `Notes`, split into bullets on commas; editable before export |
-| Stage lit up          | `Not Started`/`Grace` → Quotation · `In Progress`/`Hold` → Construction · `Completed` → Hand Over. Overridable per unit |
+| Box on the dashboard | Rule                                                                                                                                         |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Quotation References | the ticked quotes' `Quote #`, comma separated                                                                                                |
+| Quotation Amount     | sum of `Value Of Invoice` across ticked quotes, rounded to whole LE                                                                          |
+| Project Summary      | the distinct `Scope of work` values of the ticked quotes                                                                                     |
+| Project Manager      | `Assigned PM` (the one covering the most money, if they differ)                                                                              |
+| Start Date           | **earliest** `Planned Start Date` across ticked quotes                                                                                       |
+| Finish Date          | **latest** `Max Contractual` across ticked quotes                                                                                            |
+| Duration             | calendar days from Start Date to Finish Date                                                                                                 |
+| Actual Progress %    | money-weighted: Σ(progress × invoice value) ÷ Σ(invoice value)                                                                               |
+| Elapsed Time         | calendar days from Start Date to the edition's footer date, never below 0, never above Duration                                              |
+| Status               | expected % = Elapsed ÷ Duration. Progress more than **5 points** above → **AHEAD**; more than 5 below → **BEHIND**; otherwise → **ON TRACK** |
+| Area of Concern      | the ticked quotes' `Notes`, split into bullets on commas; editable before export                                                             |
+| Stage lit up         | `Not Started`/`Grace` → Quotation · `In Progress`/`Hold` → Construction · `Completed` → Hand Over. Overridable per unit                      |
 
 Worked check against the samples:
 
@@ -251,7 +253,7 @@ One per layout, exactly as the owner described:
 
 | Master              | Used when                                          |
 | ------------------- | -------------------------------------------------- |
-| **Timeline**        | the unit's ticked quotations have a Gantt schedule  |
+| **Timeline**        | the unit's ticked quotations have a Gantt schedule |
 | **Photos only**     | they do not                                        |
 | **Before Delivery** | reserved for the Before Delivery programme (v2)    |
 
@@ -327,7 +329,7 @@ Agreed with the owner. Not "never" — just not version 1.
 - **Before Delivery newsletters.** The `Before Delivery Extra works` tab has a
   different shape (no `Duration`, no `Planned Start Date`, no `Max Contractual`;
   instead `EW Expected Finish Date`, `Unit Handover date`, `Contractual Delivery
-  Date`, and a `Grace` status) and needs a different dashboard layout. The data
+Date`, and a `Grace` status) and needs a different dashboard layout. The data
   model separates After/Before Delivery from day one so this is an addition, not
   a rewrite.
 - **Emailing the newsletters to anyone.** Exports are downloaded; the owner
@@ -342,13 +344,52 @@ Agreed with the owner. Not "never" — just not version 1.
 - Automatic scheduling — the owner creates each edition when they want it.
 - Mobile app, offline use.
 
+## Preparing the covering email
+
+The tool **composes** the email that carries a newsletter. It does not send it.
+Sending is a dev-team item, recorded in `docs/PROJECT.md` — a mail pipeline,
+external non-employee recipients and client contact data are all past the scope
+guard, and the failure mode (a wrong figure reaching a paying client with nobody
+in between) is the reason.
+
+What it prepares, per unit:
+
+| Part    | Where it comes from                                                    |
+| ------- | ---------------------------------------------------------------------- |
+| Subject | one template shared by every unit, with `{unit}` filled in             |
+| Message | one template, with `{client}`, `{unit}`, `{date}` and `{pm}` filled in |
+| To      | the unit's `Client Email` addresses                                    |
+| Cc      | the project manager's own rule, plus a list copied on every unit       |
+
+Rules that matter:
+
+- **A placeholder with nothing behind it becomes a readable stand-in**, never a
+  gap and never the literal `{client}`. "Dear Sir or Madam," is recoverable;
+  "Dear ," is the version a client remembers.
+- **Anything brace-shaped that the tool does not recognise is reported** on both
+  the Email screen and the unit page. `{Client}` and `{client_name}` both look
+  right to whoever typed them and would otherwise be sent verbatim.
+- **Nobody is on both lines.** An address already in To is dropped from Cc.
+- **A malformed address is left out of To and shown as a warning**, so a typo in
+  the sheet is visible before it is pasted into Outlook rather than after it
+  bounces.
+- **A project manager with units but no Cc rule is named** on the Email screen,
+  because the quiet failure is a newsletter going out copying nobody.
+- The wording and the Cc rules are **admin-only to change** — one edit moves all
+  317 units — but **readable by everyone**, because a project manager needs to
+  know who is copied on their own units. Enforced in the page, the action and RLS.
+- The message can be edited per unit before copying, and that edit is **not
+  saved**: storing it would turn one maintained wording into 317 stale drafts.
+
 ## Open questions
 
 1. The owner needs to add a **`Client Name`** column to the Power Query before
-   the client line can be filled automatically. Until then the tool leaves it
-   blank and lets the owner type it per unit (remembered afterwards).
+   the client line can be filled automatically, and a **`Client Email`** column
+   before the To line can be. Until then the tool leaves both blank and lets the
+   owner type the names per unit (remembered afterwards), separating several
+   people with a semicolon.
 2. `Zone` has near-duplicates from the query (`Ancient Hill` vs `Ancient hill`,
    `Cyan` vs `Cyan the range`). The tool will treat them case-insensitively and
    flag the pairs on upload for the owner to confirm.
 3. OneDrive share links must be set to "anyone with the link"; if Orascom policy
-   forbids that, item 5 of *Out of scope* becomes necessary sooner.
+   forbids that, item 5 of _Out of scope_ becomes necessary sooner.

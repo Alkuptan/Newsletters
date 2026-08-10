@@ -6,6 +6,7 @@
 import { z } from "zod";
 import type { Enums } from "@/lib/supabase/database.types";
 import { STAGES } from "@/lib/newsletter/types";
+import { CLIENT_TITLES } from "@/lib/newsletter/clients";
 
 // `satisfies` fails the build if a stage here is unknown to Postgres.
 export const PROJECT_STAGES = STAGES satisfies readonly Enums<"project_stage">[];
@@ -32,14 +33,31 @@ const onedriveUrlField = z
     "A photo folder link should start with https://",
   );
 
+/**
+ * The owner's choices about a unit's clients.
+ *
+ * Keyed by client name rather than by position, so refreshing the sheet — which
+ * may reorder or re-case the names — cannot revert a curated page. See
+ * `src/lib/newsletter/clients.ts`.
+ */
+export const setUnitClientsSchema = z.object({
+  id: z.guid(),
+  /** Client name -> title. A name absent here simply has no title. */
+  titles: z.record(z.string().trim().min(1).max(300), z.enum(CLIENT_TITLES)).default({}),
+  /**
+   * The names to print. An empty array is a real decision ("name none of
+   * them"); `null` puts the unit back to showing every client.
+   */
+  shown: z.array(z.string().trim().min(1).max(300)).max(20).nullable(),
+});
+export type SetUnitClientsInput = z.infer<typeof setUnitClientsSchema>;
+
 /** Editing the details the owner types once per unit. */
 export const updateUnitSchema = z.object({
   id: z.guid(),
   // Absent means "leave unchanged"; an explicit empty string clears the column.
   displayName: displayNameField.optional(),
-  clientName: clientNameField
-    .transform((value) => (value === "" ? null : value))
-    .optional(),
+  clientName: clientNameField.transform((value) => (value === "" ? null : value)).optional(),
   onedriveFolderUrl: onedriveUrlField
     .transform((value) => (value === "" ? null : value))
     .optional(),

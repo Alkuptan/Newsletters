@@ -14,13 +14,7 @@
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/supabase/dal";
 import { createClient } from "@/lib/supabase/server";
-import {
-  RateLimitedError,
-  ValidationError,
-  fromError,
-  toResult,
-  type Result,
-} from "@/lib/errors";
+import { RateLimitedError, ValidationError, fromError, toResult, type Result } from "@/lib/errors";
 import { log } from "@/lib/log";
 import { suggestDisplayName } from "@/lib/newsletter/display-name";
 import type { TablesInsert } from "@/lib/supabase/database.types";
@@ -180,8 +174,22 @@ export async function importFollowUpSheet(input: unknown): Promise<Result<Import
      * has no client name — silently wiping a name the owner typed.
      */
     const newUnits: TablesInsert<"units">[] = [];
-    const existingUnitPatches: TablesInsert<"units">[] = [];
-    const existingUnitPatchesWithClient: TablesInsert<"units">[] = [];
+
+    /*
+      Existing units, grouped by WHICH optional columns the sheet supplied.
+      With two optional client columns there are four possible shapes, so the
+      groups are built by signature rather than by hand — adding a third such
+      column later needs no new list, and cannot accidentally reintroduce the
+      blanking bug the note above describes.
+    */
+    const patchGroups = new Map<string, TablesInsert<"units">[]>();
+    function queuePatch(base: TablesInsert<"units">, supplied: Partial<TablesInsert<"units">>) {
+      const keys = Object.keys(supplied).sort();
+      const group = patchGroups.get(keys.join("|"));
+      const patch = { ...base, ...supplied };
+      if (group) group.push(patch);
+      else patchGroups.set(keys.join("|"), [patch]);
+    }
 
     for (const [key, unitRows] of byUnit) {
       const first = unitRows[0];
@@ -190,6 +198,9 @@ export async function importFollowUpSheet(input: unknown): Promise<Result<Import
       // Client name arrives from the sheet once the owner adds the column. Until
       // then it is null, and a null must never overwrite a name they typed.
       const clientName = unitRows.find((r) => r.clientName)?.clientName ?? null;
+      // Same rule for the addresses: absent means "the sheet did not say", which
+      // must never erase what is already stored.
+      const clientEmails = unitRows.find((r) => r.clientEmails)?.clientEmails ?? null;
 
       if (existingKeys.has(key)) {
         // ONLY sheet-owned columns. display_name, stage_override and
@@ -205,12 +216,11 @@ export async function importFollowUpSheet(input: unknown): Promise<Result<Import
           // Passing the existing value keeps the type honest without changing it.
           display_name: existingDisplayNames.get(key) ?? first.unitCode,
         };
-        // Two shapes, two batches — see the note above.
-        if (clientName !== null) {
-          existingUnitPatchesWithClient.push({ ...patch, client_name: clientName });
-        } else {
-          existingUnitPatches.push(patch);
-        }
+        // Only the columns the sheet actually supplied travel with this row.
+        const supplied: Partial<TablesInsert<"units">> = {};
+        if (clientName !== null) supplied.client_name = clientName;
+        if (clientEmails !== null) supplied.client_emails = clientEmails;
+        queuePatch(patch, supplied);
       } else {
         newUnits.push({
           unit_code: first.unitCode,
@@ -220,6 +230,7 @@ export async function importFollowUpSheet(input: unknown): Promise<Result<Import
           // Suggested once, then the owner's to change and ours to leave alone.
           display_name: suggestDisplayName(first.unitCode, zone),
           client_name: clientName,
+          client_emails: clientEmails,
         });
       }
     }
@@ -234,7 +245,7 @@ export async function importFollowUpSheet(input: unknown): Promise<Result<Import
       unitsCreated += batch.length;
     }
 
-    for (const group of [existingUnitPatches, existingUnitPatchesWithClient]) {
+    for (const group of patchGroups.values()) {
       for (const batch of chunk(group)) {
         const { error } = await supabase
           .from("units")

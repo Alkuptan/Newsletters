@@ -12,6 +12,7 @@
 
 import { fromIsoDate } from "@/lib/newsletter/dates";
 import type { QuotationFigures, Stage } from "@/lib/newsletter/types";
+import { clientLine } from "@/lib/newsletter/clients";
 import {
   buildNewsletterView,
   type GanttRow,
@@ -125,7 +126,15 @@ export function unitToNewsletterView(unit: UnitDetail, options: ToViewOptions): 
   return buildNewsletterView({
     unit: {
       displayName: unit.display_name,
-      clientName: unit.client_name,
+      /*
+        The printed line, not the raw cell. A unit can have several clients in
+        one cell, and the owner chooses which of them the page names and what
+        each is called — see `src/lib/newsletter/clients.ts`.
+      */
+      clientName: clientLine(unit.client_name, {
+        titles: (unit.client_titles as Record<string, string> | null) ?? {},
+        shown: unit.client_shown,
+      }),
       concernsOverride: (unit.concerns_override as string[] | null) ?? null,
       stageOverride: (unit.stage_override as Stage | null) ?? null,
     },

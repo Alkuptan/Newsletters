@@ -9,6 +9,7 @@ import {
   Upload,
   Users,
   type LucideIcon,
+  Mail,
 } from "lucide-react";
 
 /** Shell-wide constants. Rename the tool here — nowhere else. */
@@ -34,6 +35,9 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/editions", label: "Cycles", icon: CalendarDays },
   { href: "/import", label: "Upload sheet", icon: Upload, adminOnly: true },
   { href: "/design", label: "Design", icon: Palette, adminOnly: true },
+  // Not adminOnly: a project manager needs to see who is copied on their units,
+  // even though only an admin can change it.
+  { href: "/mail", label: "Email", icon: Mail },
   { href: "/admin/users", label: "Users", icon: Users, adminOnly: true },
   { href: "/settings", label: "Settings", icon: Settings },
 ];

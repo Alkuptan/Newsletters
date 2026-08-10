@@ -12,6 +12,10 @@ import { canWriteUnit } from "@/features/units/permissions";
 import { currentPmAliases, getUnit, latestEdition } from "@/features/units/queries";
 import { QuotationTickList } from "@/features/units/components/quotation-tick-list";
 import { UnitDetailsForm } from "@/features/units/components/unit-details-form";
+import { ClientEditor } from "@/features/units/components/client-editor";
+import { UnitMailPanel } from "@/features/mail/components/unit-mail-panel";
+import { getMailSettings, listPmRouting } from "@/features/mail/queries";
+import { prepareMail } from "@/lib/newsletter/mail";
 import { stageForUnit } from "@/lib/newsletter/stage";
 import { areaOfConcernBullets } from "@/lib/newsletter/area-of-concern";
 import type { Stage } from "@/lib/newsletter/types";
@@ -55,11 +59,13 @@ export default async function UnitPage({
   const unit = await getUnit(id);
   if (!unit) notFound();
 
-  const [aliases, edition, templates, neighbours] = await Promise.all([
+  const [aliases, edition, templates, neighbours, mailSettings, pmRouting] = await Promise.all([
     currentPmAliases(),
     latestEdition(),
     getTemplateOverrides(),
     unitNeighbours(id, filters),
+    getMailSettings(),
+    listPmRouting(),
   ]);
   const canEdit = canWriteUnit(user, unit, aliases);
 
@@ -88,6 +94,23 @@ export default async function UnitPage({
     // browser will not let a canvas read a cross-origin image (DECISIONS 0007).
     photoUrl: (photo) => `/photo/${photo.id}`,
   });
+
+  /*
+    The covering email, composed from the same facts the page shows — the client
+    line the newsletter prints, the edition date in its footer. Nothing is sent;
+    this is text and addresses for a person to copy into Outlook.
+  */
+  const mail = prepareMail(
+    mailSettings,
+    {
+      clientEmails: unit.client_emails,
+      pmName: unit.assigned_pm,
+      clientLine: view.clientName,
+      unitName: unit.display_name,
+      editionDate: edition ? fromIsoDate(edition.footer_date)! : new Date(),
+    },
+    pmRouting,
+  );
 
   // Only ticked quotations get a schedule editor: an untitled bar chart for a
   // quotation that is not on the newsletter is just noise.
@@ -175,6 +198,22 @@ export default async function UnitPage({
             canEdit={canEdit}
           />
 
+          <div className="space-y-2">
+            <h2 className="text-sm font-semibold">Who the newsletter names</h2>
+            <p className="text-muted-foreground text-xs">
+              A unit can have more than one client. Tick the ones to name on the page and set what
+              each is called. Your choice is remembered and survives the next sheet upload.
+            </p>
+            <ClientEditor
+              unitId={unit.id}
+              rawNames={unit.client_name}
+              rawEmails={unit.client_emails}
+              storedTitles={(unit.client_titles as Record<string, string> | null) ?? {}}
+              storedShown={unit.client_shown}
+              canEdit={canEdit}
+            />
+          </div>
+
           <QuotationTickList quotations={quotations} canEdit={canEdit} />
 
           {canEdit && (
@@ -257,6 +296,11 @@ export default async function UnitPage({
             editionId={edition?.id}
             unitId={unit.id}
           />
+
+          <div className="space-y-2 border-t pt-3">
+            <h2 className="text-sm font-semibold">The email to send</h2>
+            <UnitMailPanel mail={mail} unitName={unit.display_name} pmName={unit.assigned_pm} />
+          </div>
         </section>
       </div>
 

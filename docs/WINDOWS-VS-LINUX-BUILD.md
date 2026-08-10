@@ -194,8 +194,20 @@ docker run --rm \
   -v "H:\Claude Apps\Newsletter system\Newsletters-main:/app" \
   -v newsletter_nm:/app/node_modules \
   -w /app node:22-bookworm \
-  bash -lc "corepack enable && pnpm install && pnpm exec opennextjs-cloudflare build"
+  bash -lc "corepack enable && pnpm install --frozen-lockfile && pnpm run build:cf"
 ```
+
+**`pnpm run build:cf`, never `pnpm exec opennextjs-cloudflare build`.** This
+document originally showed the raw adapter command, and following it leaked both
+service-role keys into a deployed bundle: Next auto-loads `.env.local` and
+`.env.production.local`, and the adapter inlines every loaded variable into
+`.open-next/cloudflare/next-env.mjs`, which ships inside the Worker. `build:cf`
+blanks those variables for the build. `scripts/check-bundle-secrets.mjs` now
+refuses a deploy that carries one, and runs automatically as part of
+`pnpm run deploy`.
+
+Stop the dev server before building. It holds files open under `.next`, so the
+clean-out silently half-fails and the build runs against a mixed directory.
 
 The named volume for `node_modules` matters: it shadows the Windows-installed
 dependencies, so the container gets Linux binaries while the source stays on the

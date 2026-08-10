@@ -28,6 +28,7 @@ import { currentPmAliases } from "./queries";
 import {
   setConcernsSchema,
   setQuotationIncludedSchema,
+  setUnitClientsSchema,
   updateUnitSchema,
 } from "./schema";
 
@@ -86,6 +87,38 @@ export async function updateUnit(input: unknown): Promise<Result<null>> {
     if (Object.keys(patch).length === 0) return toResult(null);
 
     const { error } = await supabase.from("units").update(patch).eq("id", id);
+    if (error) throw error;
+
+    revalidatePath("/units");
+    revalidatePath(`/units/${id}`);
+    return toResult(null);
+  } catch (err) {
+    return fromError(err);
+  }
+}
+
+/**
+ * Record which of a unit's clients the newsletter names, and what each is called.
+ *
+ * Stored against the client's NAME, so the next sheet refresh cannot lose it.
+ * `shown: null` means "no decision" and puts the unit back to naming everyone,
+ * which is why the column is nullable rather than defaulting to an empty array.
+ */
+export async function setUnitClients(input: unknown): Promise<Result<null>> {
+  try {
+    const parsed = setUnitClientsSchema.safeParse(input);
+    if (!parsed.success) {
+      throw new ValidationError(parsed.error.issues, parsed.error.issues[0]?.message);
+    }
+    const { id, titles, shown } = parsed.data;
+
+    const { supabase } = await assertCanWriteUnit(id);
+    await checkEditRate(supabase);
+
+    const { error } = await supabase
+      .from("units")
+      .update({ client_titles: titles, client_shown: shown })
+      .eq("id", id);
     if (error) throw error;
 
     revalidatePath("/units");

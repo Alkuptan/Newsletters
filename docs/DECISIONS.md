@@ -70,6 +70,28 @@
 - **Forecloses:** Letting either output "just tweak" a position locally. A layout
   change means changing the shared constants, which moves all three outputs.
 
+## 0015 — Client contact data is held, and the owner decided that knowingly
+
+- **What:** `units.client_emails` stores the unit's client email addresses, so the
+  mail the tool prepares can have its **To** line filled in. Client names were
+  already in the spec; the addresses are new. Sending the mail is still NOT in
+  this tool (see the graduation trigger in `docs/PROJECT.md`) — it prepares a
+  message and a person presses Send.
+- **Why:** Asked for on 10 August 2026. The concern was put to the owner
+  explicitly — that this makes the tool hold contact data for 317 units' clients,
+  on a personal free-tier account with no automatic backups, which is a
+  scope-guard line ("guest/customer PII") — with the alternative of pasting
+  addresses from Outlook per unit. The owner chose to store them, and confirmed
+  it when asked a second time. Recorded here rather than quietly implemented,
+  because the next person to look at this needs to know it was a decision and not
+  an oversight.
+- **Forecloses:** Claiming this tool holds no customer data. Handover now has to
+  cover where client contacts live, who may read them (RLS: `can_read_unit`, so a
+  project manager sees only their own units), and how they are removed. It also
+  raises the cost of a database leak from "internal figures" to "customer contact
+  details", which is an argument for moving to a company account sooner rather
+  than later.
+
 ## 0014 — Photos are browsed off disk, not uploaded in bulk
 
 - **What:** The parent photo folder is chosen once via the File System Access

@@ -49,6 +49,13 @@ export interface FollowUpRow {
   markedReadyInSheet: boolean;
   /** From the `Client Name` column the owner is adding to the Power Query. */
   clientName: string | null;
+  /**
+   * From the `Client Email` column, when the sheet has one.
+   *
+   * One cell may hold several addresses; splitting them is the render path's
+   * job, not the parser's, so the raw text is carried through unchanged.
+   */
+  clientEmails: string | null;
 }
 
 /** A row the tool could not use, with a reason the owner can act on. */
@@ -171,9 +178,7 @@ export function parseFollowUpSheet(
 
   if (!worksheet) {
     const available = workbook.SheetNames.join(", ");
-    throw new Error(
-      `This workbook has no tab called "${sheetName}". It contains: ${available}.`,
-    );
+    throw new Error(`This workbook has no tab called "${sheetName}". It contains: ${available}.`);
   }
 
   // range: HEADER_ROW - 1 makes SheetJS treat row 2 as the header row and key
@@ -189,7 +194,9 @@ export function parseFollowUpSheet(
     range: HEADER_ROW - 1,
     blankrows: false,
   })[0];
-  const headers = resolveHeaders((headerRow ?? []).filter((h): h is string => typeof h === "string"));
+  const headers = resolveHeaders(
+    (headerRow ?? []).filter((h): h is string => typeof h === "string"),
+  );
 
   if (!headers.has(fold("Unit")) || !headers.has(fold("Quote #"))) {
     throw new Error(
@@ -240,6 +247,7 @@ export function parseFollowUpSheet(
       notes: asText(cell(row, headers, "Notes")),
       markedReadyInSheet: fold(asText(cell(row, headers, "Newsletter")) ?? "") === "ready",
       clientName: asText(cell(row, headers, "Client Name")),
+      clientEmails: asText(cell(row, headers, "Client Email")),
     });
   });
 

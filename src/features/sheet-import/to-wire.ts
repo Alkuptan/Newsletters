@@ -31,6 +31,7 @@ export function toImportedRows(parsed: ParsedSheet): ImportedRow[] {
     notes: row.notes,
     markedReadyInSheet: row.markedReadyInSheet,
     clientName: row.clientName,
+    clientEmails: row.clientEmails,
   }));
 }
 

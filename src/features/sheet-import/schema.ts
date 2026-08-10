@@ -59,6 +59,8 @@ export const importedRowSchema = z.object({
   notes: optionalText(4000),
   markedReadyInSheet: z.boolean().default(false),
   clientName: optionalText(300),
+  // Several addresses in one cell, so this is longer than a single address.
+  clientEmails: optionalText(2000),
 });
 export type ImportedRow = z.infer<typeof importedRowSchema>;
 

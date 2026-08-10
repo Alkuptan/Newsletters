@@ -23,6 +23,7 @@ import { UnitTable, type UnitRow } from "@/features/units/components/unit-table"
 import { UnitCards } from "@/features/units/components/unit-cards";
 import { PatchAdder } from "@/features/units/components/patch-adder";
 import { tidyZone } from "@/lib/newsletter/display-name";
+import { clientLine } from "@/lib/newsletter/clients";
 import { formatFooterDate, fromIsoDate } from "@/lib/newsletter/dates";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -61,7 +62,11 @@ export default async function UnitsPage({
     id: row.unit.id,
     displayName: row.unit.display_name,
     unitCode: row.unit.unit_code,
-    clientName: row.unit.client_name,
+    // The line as the newsletter prints it, so the list and the page agree.
+    clientName: clientLine(row.unit.client_name, {
+      titles: (row.unit.client_titles as Record<string, string> | null) ?? {},
+      shown: row.unit.client_shown,
+    }),
     // Tidied, not raw: the query emits "Ancient Hill" and "Ancient hill" for the
     // same place.
     zone: tidyZone(row.unit.zone),

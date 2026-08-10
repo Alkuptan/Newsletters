@@ -147,13 +147,15 @@ export function UnitDetailsForm({
         <Input
           id={`client-${unitId}`}
           value={clientName}
-          placeholder="Mr. …"
+          placeholder="Mona Ibrahim; Youssef Hakim"
           disabled={!canEdit || pending}
           onChange={(event) => setClientName(event.target.value)}
           className="h-8"
         />
         <p className="text-muted-foreground text-xs">
           Filled from the sheet once a <strong>Client Name</strong> column is added to the query.
+          Several owners: separate them with a semicolon, then choose who is named below. Titles
+          belong there too, not here.
         </p>
       </div>
 
@@ -200,8 +202,8 @@ export function UnitDetailsForm({
         {!useSheetNotes && sheetDiffers && (
           <div className="space-y-1.5 rounded-md border border-amber-300 bg-amber-50 p-2 text-xs dark:border-amber-800 dark:bg-amber-950">
             <p className="text-amber-900 dark:text-amber-200">
-              The sheet&apos;s notes now say something different. Yours is kept — this is
-              only so you know.
+              The sheet&apos;s notes now say something different. Yours is kept — this is only so
+              you know.
             </p>
             {sheetConcerns.length > 0 ? (
               <ul className="text-muted-foreground list-inside list-disc">

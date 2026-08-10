@@ -175,6 +175,71 @@ and uploaded from there. `ci.yml` needs no secrets and is green.
 <!-- Requests the scope guard blocked (RULES.md). Each becomes an agenda item
 when the dev team gets involved. -->
 
+### Sending the newsletter email to clients from the tool
+
+Asked for on 10 August 2026: the tool composes the covering email, puts the
+newsletter image in the body, attaches the PDF, addresses it **To** the unit's
+client(s) and **CC**s the project manager, that manager's manager and a standing
+list, then sends it.
+
+Three separate scope-guard lines at once, which is why it is here and not built:
+
+- **an email pipeline** — delivery, bounces, retries, a sending domain, SPF/DKIM
+  and a suppression list. Supabase's built-in mail reaches only the project
+  owner's own address, twice an hour (see RULES.md, free-tier facts), so this
+  needs real SMTP or a provider;
+- **external, non-employee recipients.** `docs/SPEC.md` draws its boundary at
+  "any client or non-employee access", and mail addressed to a client crosses it.
+  A wrong address or a stale figure reaches a paying customer directly, with no
+  step in between where anyone notices;
+- **client PII** — names and email addresses for 317 units, held in a database on
+  a personal free-tier account that has no automatic backups.
+
+**What version 1 does instead, and it is most of the value:** the tool prepares
+the message and a person presses Send in Outlook. The covering note is generated
+per unit with the client's name, title and the edition date; the newsletter image
+and the PDF come out already named `<Unit> Newsletter`; and the addressee list is
+worked out and shown for copying. Nothing leaves the building without a human
+seeing it, and no client address needs to be stored to make it work.
+
+The dev-team version is worth doing properly: a real provider, a per-cycle send
+log, a bounce report, an approval step before a batch goes out, and client
+contacts held wherever the company already holds them rather than a second copy
+here.
+
+### Pulling data out of the internal programme system
+
+Also asked for on 10 August 2026: read client names and email addresses (a unit
+can have several of each) from the internal system, rather than typing them.
+
+Same dependency as the photos below, for the same reason: an Orascom IT
+credential. Reading a company system of record is not something the owner can
+self-serve — the Azure route was tested and returned 401 (see below). Until then
+the tool takes client names from a **`Client Name`** column in the sheet, which
+is a copy-and-paste the owner already controls.
+
+Worth asking IT for both in one conversation: a read credential for the unit
+photo folders **and** a read credential (or a scheduled export) for client
+contacts. Two asks, one meeting.
+
+### A live sheet the tool re-reads on a schedule
+
+The owner would prefer to keep the sheet in a shared folder and have the tool
+re-read it automatically instead of uploading it.
+
+The blocker is not the schedule — one cron job is inside the paved road. It is
+**reaching the file**: a sheet in a SharePoint or OneDrive team folder needs the
+same app registration as the photos. Two things would make it possible without
+IT, and both are the owner's call rather than a build task:
+
+1. the file shared as **"anyone with the link"**, which for a spreadsheet holding
+   every unit's contract value is a decision to take deliberately, not casually;
+2. or a copy of the sheet published to a location the tool can already read.
+
+Until one of those exists, the upload stays. It is one file and one click, and it
+has the advantage that the owner knows exactly which version the newsletters were
+built from — a scheduled pull would silently change figures under a cycle.
+
 ### Reading photos straight out of SharePoint / OneDrive
 
 Version 1 has the owner save photos out of the unit's folder and add them with the

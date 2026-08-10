@@ -877,3 +877,46 @@ All four things the owner asked for:
 
 **Everything on the owner's list is now built.** Nothing is deployed yet — one
 Linux build and deploy covers batches six and seven together.
+
+## Batch eight — several clients per unit, and the covering email
+
+Plan: `docs/plans/004-clients-and-email.md`. Asked for after the owner sent a real
+newsletter email as the example to work from.
+
+**Clients.** A unit can be owned by more than one person, in one sheet cell. The
+unit page splits them, and the owner ticks who the newsletter names and sets a
+title each (Mr./Mrs./Ms./Dr./Eng./Arch.). The choices are stored against the
+client's NAME, so refreshing the Power Query cannot revert a curated page —
+reordering, re-casing and a newly added part-owner all leave it intact.
+
+Two rules that exist because the alternative reaches a paying client:
+
+- names are never split on a **comma** ("Ibrahim, Gasser El Sayed" is one person
+  written surname-first, and splitting it invents a client);
+- a title already written into the sheet is **lifted out of the name**, or
+  choosing a title too would print "Mr. Mr. Gasser …".
+
+**The covering email.** A new **Email** screen holds one subject and message for
+every unit, with `{client}`, `{unit}`, `{date}` and `{pm}` filled in per unit; the
+people copied on every unit; and one Cc rule per project manager, keyed by the name
+as the sheet spells it (most PMs in the sheet have no account here). The unit page
+shows the finished message with copy buttons, beside the JPG and PDF exports.
+
+The tool does **not** send it — that is a dev-team item, recorded in
+`docs/PROJECT.md` with the reasons. It composes; a person presses Send.
+
+Guards that turn quiet failures into visible ones: a placeholder with nothing
+behind it becomes "Sir or Madam" rather than "Dear ,"; a brace-shaped word the tool
+does not recognise is reported on both screens; an address in To is dropped from Cc;
+a malformed address is left out and flagged; and a project manager with units but no
+Cc rule is named on the Email screen.
+
+Holding client email addresses was the owner's decision, taken after the concern was
+put to them and confirmed a second time — DECISIONS 0015.
+
+`pnpm verify` green with **278 tests**. Verified against the dev stack end to end,
+including that the least privileged user sees the Email screen read-only and **RLS
+refuses the write underneath** (`42501` on inserting a Cc rule; the wording
+unchanged after a direct PATCH).
+
+**Still not deployed** — one Linux build covers batches six to eight together.
