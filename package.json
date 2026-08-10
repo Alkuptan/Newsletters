@@ -26,7 +26,9 @@
     "deploy": "pnpm run build:cf && node scripts/check-bundle-secrets.mjs && dotenv -e .env.production.local -- opennextjs-cloudflare deploy",
     "preview": "pnpm run build:cf && dotenv -e .env.production.local -- opennextjs-cloudflare preview",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv ./cloudflare-env.d.ts",
-    "prepare": "husky"
+    "prepare": "husky",
+    "check:publishable": "node scripts/check-publishable.mjs",
+    "check:publishable:build": "node scripts/build-publish-denylist.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

@@ -212,7 +212,7 @@ anything when the date is unreadable.
 
 **Two notes for whoever picks this up.** A unit can have several ticked
 quotations, each with its own editor — the buttons name the quote number
-("Build a time schedule for 19898") because the first editor on the page is not
+("Build a time schedule for 20415") because the first editor on the page is not
 necessarily the one you want. And schedules are only offered from units the
 signed-in person can already see, since the query runs under RLS.
 

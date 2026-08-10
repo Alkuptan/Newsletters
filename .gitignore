@@ -62,3 +62,6 @@ cloudflare-env.d.ts
 # Deliberately never published: it carries live unit values, PM names and
 # client names. The tests that need it skip when it is absent.
 /Sample/
+
+# Derived from the live sheet by pnpm check:publishable:build — holds real figures.
+/.publish-denylist.txt

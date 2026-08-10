@@ -145,12 +145,15 @@ git push origin "$COMMIT:main"        # a fast-forward; no --force, nothing lost
 the unscrubbed history. `git filter-branch`/`filter-repo` would clean it properly,
 but it is a destructive rewrite and was deliberately not run.
 
-Before any publish, re-run the two checks that matter, because both caught real
-leaks the first time:
+Before any publish, run **`pnpm check:publishable`**. It fails the publish rather
+than reporting; both of the things it looks for have leaked once already:
 
 1. Every real figure, in every format it can take — plain, two-decimal, rounded,
    comma-grouped and underscore-grouped. A first pass matching only bare numbers
-   missed `"1,331,297 LE"` in the e2e spec and quote numbers in two documents.
+   missed the comma-grouped form — `"1,234,567 LE"` in shape — in the e2e spec,
+   and quote numbers in two documents. **Do not quote a real figure here to
+   illustrate the point.** Doing exactly that put one back into this file, and it
+   was published before the check caught it.
 2. Every secret-shaped value in `.env.local` and `.env.production.local` against
    every tracked file. `scripts/check-bundle-secrets.mjs` does this for the
    deploy artifact and is the model for it.
