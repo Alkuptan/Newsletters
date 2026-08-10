@@ -314,6 +314,7 @@ export default async function UnitPage({
             <h2 className="text-sm font-semibold">The email to send</h2>
             <UnitMailPanel
               mail={mail}
+              view={view}
               unitId={unit.id}
               unitName={unit.display_name}
               pmName={unit.assigned_pm}

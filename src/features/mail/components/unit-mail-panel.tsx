@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { PreparedMail } from "@/lib/newsletter/mail";
+import type { NewsletterView } from "@/lib/newsletter/view-model";
 import { mailtoLink, outlookWebComposeLink, type SendHistory } from "@/lib/newsletter/outlook";
 import { setUnitSent } from "@/features/units/patch-actions";
 
@@ -81,6 +82,7 @@ function formatSent(date: Date): string {
 
 export function UnitMailPanel({
   mail,
+  view,
   unitId,
   unitName,
   pmName,
@@ -90,6 +92,8 @@ export function UnitMailPanel({
   canEdit,
 }: {
   mail: PreparedMail;
+  /** The rendered newsletter's data, for the picture and the PDF. */
+  view: NewsletterView;
   unitId: string;
   unitName: string;
   pmName: string | null;
@@ -106,6 +110,39 @@ export function UnitMailPanel({
   const compose = { to: mail.to, cc: mail.cc, subject: mail.subject, body };
   const outlook = outlookWebComposeLink(compose);
   const mailto = mailtoLink(compose);
+
+  const [building, setBuilding] = useState(false);
+
+  /**
+   * Build the message file from the newsletter as it is rendered right now.
+   *
+   * The rendered newsletter lives in a sibling component, so it is found by the
+   * attribute the exporters and the e2e tests already use rather than by
+   * threading a ref through the page. The alternative — moving the export
+   * plumbing in here — would separate the message from the wording being edited
+   * a few lines above, which is the thing that has to stay together.
+   */
+  async function openOutlookMessage() {
+    const element = document.querySelector<HTMLElement>("[data-newsletter-canvas]");
+    if (!element) {
+      toast.error("The newsletter is not on screen yet. Give it a moment and try again.");
+      return;
+    }
+    setBuilding(true);
+    try {
+      const { exportNewsletterEml } = await import("@/lib/newsletter/raster");
+      await exportNewsletterEml(element, view, compose);
+      toast.success("Message downloaded. Open it and Outlook will show it ready to send.");
+    } catch (error) {
+      // Rendering can fail on a photo that will not load; saying which step broke
+      // is more use than a silent no-op on a button that looked like it worked.
+      toast.error(
+        `Could not build the message: ${error instanceof Error ? error.message : "unknown error"}`,
+      );
+    } finally {
+      setBuilding(false);
+    }
+  }
 
   function markSent(next: boolean) {
     if (!editionId) return;
@@ -131,8 +168,8 @@ export function UnitMailPanel({
   return (
     <div className="space-y-4">
       <p className="text-muted-foreground text-xs">
-        Copy these into a new Outlook message, then attach the JPG and the PDF from the export
-        buttons above. The tool does not send email itself.
+        Check it here, then open it in Outlook and press Send. The tool prepares the message; you
+        send it, from your own mailbox.
       </p>
 
       {mail.unknown.length > 0 && (
@@ -204,34 +241,37 @@ export function UnitMailPanel({
 
       <div className="space-y-2 border-t pt-3">
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" asChild>
+          <Button size="sm" disabled={building} onClick={openOutlookMessage}>
+            {building ? "Building the message…" : "Open in Outlook, ready to send"}
+          </Button>
+          <Button size="sm" variant="outline" asChild>
             {/*
-              Opens Outlook on the web with everything filled in, so this works
-              from any machine rather than only the laptop with Outlook installed.
-              A link cannot carry a file, so the two attachments are still added
-              by hand — see src/lib/newsletter/outlook.ts.
+              Outlook on the WEB. Carries the addresses and the text but no files —
+              no URL can. Kept alongside the message file for the case where the
+              machine has no Outlook installed to open a .eml with.
             */}
             <a href={outlook.url} target="_blank" rel="noopener noreferrer">
-              Open in Outlook
+              Outlook on the web (no attachments)
             </a>
           </Button>
           <Button size="sm" variant="outline" asChild>
-            <a href={mailto.url}>Open in my mail program</a>
+            <a href={mailto.url}>Mail program</a>
           </Button>
           <CopyButton label="Everything" value={everything} />
         </div>
 
+        <p className="text-muted-foreground text-xs">
+          The first button downloads a message file. Open it and Outlook shows a draft addressed and
+          written, with the newsletter in the body and the PDF attached — check it, then press Send.
+          It goes from your own mailbox, with your signature.
+        </p>
+
         {outlook.truncated && (
           <p className="text-xs text-amber-600 dark:text-amber-500">
-            The message is too long to fit in a link, so Outlook will open with it shortened. Use
-            &ldquo;Copy message&rdquo; and paste instead.
+            The message is too long for the web link, so that one opens shortened. The message file
+            is unaffected.
           </p>
         )}
-
-        <p className="text-muted-foreground text-xs">
-          Attach the JPG and the PDF yourself — a link cannot carry a file. Keep the subject exactly
-          as it is and Outlook groups each unit&apos;s newsletters into one conversation.
-        </p>
       </div>
 
       <div className="space-y-2 border-t pt-3">

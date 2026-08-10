@@ -76,10 +76,7 @@ export async function exportNewsletterPdf(
   element: HTMLElement,
   view: NewsletterView,
 ): Promise<void> {
-  const [dataUrl, { jsPDF }] = await Promise.all([
-    toJpegDataUrl(element),
-    import("jspdf"),
-  ]);
+  const [dataUrl, { jsPDF }] = await Promise.all([toJpegDataUrl(element), import("jspdf")]);
 
   const widthInches = pxToInches(SLIDE_WIDTH_PX);
   const heightInches = pxToInches(SLIDE_HEIGHT_PX);
@@ -92,6 +89,74 @@ export async function exportNewsletterPdf(
   });
   pdf.addImage(dataUrl, "JPEG", 0, 0, widthInches, heightInches);
   pdf.save(`${baseFileName(view)}.pdf`);
+}
+
+/** Base64 in chunks: `String.fromCharCode(...bytes)` overflows the stack on a 5 MB PDF. */
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const CHUNK = 0x8000;
+  for (let at = 0; at < bytes.length; at += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(at, at + CHUNK));
+  }
+  return btoa(binary);
+}
+
+/**
+ * Download a ready-to-send Outlook message: newsletter in the body, PDF attached.
+ *
+ * This is the one route that carries the files. A compose link cannot — see
+ * `src/lib/newsletter/eml.ts`, which explains the format and the `X-Unsent`
+ * header that makes Outlook open it as a draft with a Send button rather than as
+ * a read-only received message.
+ *
+ * The JPEG is rendered once and used twice: shown in the body, and as the single
+ * page of the PDF. So the picture in the email and the attachment cannot disagree.
+ */
+export async function exportNewsletterEml(
+  element: HTMLElement,
+  view: NewsletterView,
+  message: { to: readonly string[]; cc: readonly string[]; subject: string; body: string },
+): Promise<void> {
+  const [{ buildEml, emlFileName }, dataUrl, { jsPDF }] = await Promise.all([
+    import("./eml"),
+    toJpegDataUrl(element),
+    import("jspdf"),
+  ]);
+
+  const jpegBase64 = dataUrl.slice(dataUrl.indexOf(",") + 1);
+
+  const widthInches = pxToInches(SLIDE_WIDTH_PX);
+  const heightInches = pxToInches(SLIDE_HEIGHT_PX);
+  const pdf = new jsPDF({
+    orientation: "landscape",
+    unit: "in",
+    format: [widthInches, heightInches],
+    compress: true,
+  });
+  pdf.addImage(dataUrl, "JPEG", 0, 0, widthInches, heightInches);
+  const pdfBase64 = bytesToBase64(new Uint8Array(pdf.output("arraybuffer")));
+
+  // What the owner's own emails call them, so nothing looks unfamiliar to a client.
+  const base = `${view.displayName.replace(/[\\/:*?"<>|]/g, "-")} Newsletter`;
+
+  const eml = buildEml({
+    to: message.to,
+    cc: message.cc,
+    subject: message.subject,
+    body: message.body,
+    inline: {
+      filename: `${base}.jpg`,
+      mimeType: "image/jpeg",
+      base64: jpegBase64,
+      contentId: "newsletter",
+    },
+    attachments: [{ filename: `${base}.pdf`, mimeType: "application/pdf", base64: pdfBase64 }],
+  });
+
+  const url = URL.createObjectURL(new Blob([eml], { type: "message/rfc822" }));
+  triggerDownload(url, emlFileName(base));
+  // Revoked on a delay: revoking immediately cancels the download in some browsers.
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 /**
@@ -185,9 +250,7 @@ export async function createPerUnitZip(): Promise<{
         zip(files, { level: 0 }, (error, data) => (error ? reject(error) : resolve(data)));
       });
 
-      const url = URL.createObjectURL(
-        new Blob([zipped as BlobPart], { type: "application/zip" }),
-      );
+      const url = URL.createObjectURL(new Blob([zipped as BlobPart], { type: "application/zip" }));
       try {
         triggerDownload(url, zipFileName);
       } finally {
@@ -229,11 +292,11 @@ export async function exportCyclePptx(
 }
 
 /**
-  * Download the newsletter as an editable PowerPoint slide.
-  *
-  * Takes the same resolved design the preview used, so the slide is what the
-  * owner just approved on screen rather than the original template.
-  */
+ * Download the newsletter as an editable PowerPoint slide.
+ *
+ * Takes the same resolved design the preview used, so the slide is what the
+ * owner just approved on screen rather than the original template.
+ */
 export async function exportNewsletterPptx(
   view: NewsletterView,
   theme?: NewsletterTheme,

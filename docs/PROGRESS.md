@@ -962,3 +962,30 @@ against the dev stack: the link carries both client addresses semicolon-separate
 the standing CC list, the subject and a greeting naming both clients with their
 titles; an edit to the message reaches the link; and marking a unit sent survives a
 reload and reads back as "Sent 1 time — first on 10 Aug 2026".
+
+### Correction to batch nine: the message file carries the attachments
+
+I told the owner a button could open Outlook "with both files attached", then built
+a compose link, which cannot carry a file, and told them so. Both halves of that
+were wrong in different directions. A **`.eml` message file** can, and now does.
+
+`src/lib/newsletter/eml.ts` builds a real MIME message: `multipart/mixed` wrapping
+a `multipart/related`, so the newsletter shows inside the body by content id while
+the PDF arrives as an attachment. Two headers make Outlook treat it as a draft
+rather than a received message — `X-Unsent: 1` for a live Send button, and no
+`From:` so it goes from the signed-in person's own mailbox with their signature.
+
+That is also the answer to "can being signed in on the org laptop work around the
+permission": not for the tool — consent belongs to an app identity at the tenant —
+but the signed-in desktop apps can be the bridge. Outlook does the sending, so no
+permission is involved. Exactly the shape of the photo solution.
+
+Verified by downloading the file and taking it apart: 803 KB, headers correct,
+`X-Unsent` present, no `From`, body referencing `cid:newsletter`, a valid
+3200 × 1800 JPEG inline and a valid PDF attached.
+
+Still missing: a real reply chain, which needs the previous message's `Message-ID`
+and therefore Graph. `Thread-Topic` groups each unit's newsletters into one Outlook
+conversation instead.
+
+`pnpm verify` green with **312 tests**, 20 of them on the message file.

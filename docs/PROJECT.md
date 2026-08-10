@@ -224,18 +224,43 @@ The first is the one to ask for. It sends **as the signed-in person**, needs no
 password anywhere, and the same app registration covers reading the unit photo
 folders and client contacts — so it is one IT request, not three.
 
-**Until then, what the tool does instead** gets it to one click without any of the
-above: an **Open in Outlook** button opens Outlook on the web with the To, Cc,
-subject and message already filled, from any machine rather than only the laptop.
-A URL cannot carry a file, so the JPG and the PDF are attached by hand. That is
-the only manual step left, and only the app registration removes it.
+### The workaround that does not need permission: hand Outlook a message file
 
-**True threading also needs the tool to send.** Continuing an existing
-conversation means setting the `In-Reply-To`/`References` headers on a real
-message, which a compose link cannot do. What works today: keep each unit's
-subject byte-identical (`{unit} Newsletter`, the default) and Outlook groups that
-unit's newsletters under one conversation topic. Grouping by subject, not real
-threading — good enough to find the history, not the same thing.
+Being signed in to Outlook and OneDrive on the org laptop does **not** grant this
+tool any permission. Consent is granted to an app identity at the tenant, not to a
+device — so no app registration means no Graph token, whoever is signed in where.
+
+But the signed-in desktop apps can be used as the BRIDGE, and that is the whole
+workaround. It is already how photos work (OneDrive syncs the folders, the tool
+reads them off disk), and it is now how mail works:
+
+**The tool builds a `.eml` file and the browser downloads it. Opening it gives a
+finished Outlook draft** — addressed, written, the newsletter shown in the body,
+the PDF attached — and the person presses Send. Two headers make it behave:
+
+- **`X-Unsent: 1`** — Outlook opens it in compose mode with a live Send button
+  instead of read-only. Without this header the file is useless.
+- **no `From:`** — Outlook fills in the signed-in account, so it sends from the
+  person's own mailbox with their own signature. Nothing is impersonated, no
+  password is stored, and no permission is needed, because **Outlook is doing the
+  sending, not the tool**.
+
+Verified end to end: an 803 KB file whose inline part is a valid 3200 × 1800 JPEG
+and whose attachment is a valid PDF. `src/lib/newsletter/eml.ts` builds it and is
+unit-tested for the things that fail silently — header injection, non-ASCII
+subjects, CRLF, and base64 line length.
+
+A compose LINK (`mailto:` or the Outlook web deeplink) is kept alongside for a
+machine with no Outlook installed, but a link can never carry a file, and saying
+otherwise was a mistake made once in this project's history.
+
+**True threading is the one thing still missing.** A real reply carries
+`In-Reply-To`/`References` pointing at the previous message's `Message-ID`, which
+only exists after Exchange has sent something, and reading it back needs Graph.
+`Thread-Topic` is set to the unit's subject so Outlook files each unit's
+newsletters under one conversation — grouping, which finds the history, not a
+reply chain. An Outlook VBA macro could close the gap by calling `ReplyAll` on the
+previous sent message, if the tenant's macro policy allows macros at all.
 
 The dev-team version is worth doing properly: delegated Graph send, a per-unit
 send log with the message id so replies thread correctly, a bounce report, and
