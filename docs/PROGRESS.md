@@ -989,3 +989,33 @@ and therefore Graph. `Thread-Topic` groups each unit's newsletters into one Outl
 conversation instead.
 
 `pnpm verify` green with **312 tests**, 20 of them on the message file.
+
+### Batch nine, part three: a real reply chain, via an Outlook macro
+
+The owner confirmed classic Outlook is installed alongside the new one, that
+Alt + F11 opens the macro editor, and that macro settings are "Enable all macros".
+So the one thing the message file cannot do — continue an actual email thread — is
+reachable after all, without any IT involvement.
+
+`docs/outlook-macro/NewsletterThread.bas` picks up the newest message file the tool
+downloaded, finds the last thing sent with the same subject in Sent Items, and
+replies to it — so Outlook itself sets the hidden headers that make it a genuine
+reply rather than a lookalike. This cycle's wording and newsletter go above the
+quoted history, the tool's own To and Cc replace Reply All's guesses (a CC rule may
+have changed since last cycle), and the picture is put in the body by content id
+and hidden from the paperclip list so it does not appear twice. First time out for
+a unit there is nothing to reply to, so it opens as a normal new message.
+
+**It never sends.** There is no `.Send` anywhere in it; it opens the draft and the
+person presses Send.
+
+The owner does not have to give up the new Outlook as their default: the macro
+reads the file from the Downloads folder, so nothing about which app is default
+matters. Setting the `.eml` association to classic Outlook is offered as a
+convenience and a fallback, and changes only that file type.
+
+**Written but not tested** — it needs a real Outlook and a real mailbox, neither
+available where it was written. `docs/outlook-macro/README.md` lists exactly what
+to report from the first run, and names the two things most likely to need
+adjusting: the inline picture sticking as inline, and a mailbox large enough that
+the previous newsletter falls outside the 3,000 most recent sent items.
