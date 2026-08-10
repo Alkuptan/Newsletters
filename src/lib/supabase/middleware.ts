@@ -4,6 +4,16 @@ import { NextResponse, type NextRequest } from "next/server";
 const PUBLIC_PATHS = ["/login", "/auth", "/forgot-password", "/reset-password"];
 
 /**
+ * `/newsletter-preview` renders the newsletter design from hard-coded fixtures
+ * and reads no data, so it is reachable without signing in while developing the
+ * layout. It is NEVER public in production: this list is empty there, and the
+ * page itself calls `notFound()` — two independent layers, as with every other
+ * gate in this codebase.
+ */
+const DEV_ONLY_PUBLIC_PATHS =
+  process.env.NODE_ENV === "production" ? [] : ["/newsletter-preview"];
+
+/**
  * Session refresh, called from src/middleware.ts on every request. Auth
  * *enforcement* lives in the (app) layout gate and in the DAL guards — this
  * only keeps the session cookie fresh and bounces anonymous users to /login.
@@ -35,7 +45,9 @@ export async function updateSession(request: NextRequest) {
   const { data } = await supabase.auth.getClaims();
   const user = data?.claims;
 
-  const isPublic = PUBLIC_PATHS.some((p) => request.nextUrl.pathname.startsWith(p));
+  const isPublic = [...PUBLIC_PATHS, ...DEV_ONLY_PUBLIC_PATHS].some((p) =>
+    request.nextUrl.pathname.startsWith(p),
+  );
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";

@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm -v)",
+      "Bash(echo \"pnpm: $\\(pnpm -v 2>/dev/null || echo missing\\)\")",
+      "Bash(git --version)",
+      "Bash(echo \"git: $\\(git --version 2>/dev/null || echo missing\\)\")",
+      "Bash(docker info *)"
+    ]
+  }
+}

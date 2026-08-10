@@ -164,6 +164,8 @@ export function UsersTable({
       {
         id: "actions",
         header: "",
+        // Buttons, not a value — there is nothing to order by.
+        enableSorting: false,
         cell: ({ row }) => (
           <div className="flex justify-end">
             <RowActions profile={row.original} isSelf={row.original.id === currentUserId} />

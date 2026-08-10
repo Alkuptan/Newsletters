@@ -12,13 +12,13 @@ export const inviteUserSchema = z.object({
 export type InviteUserInput = z.infer<typeof inviteUserSchema>;
 
 export const setUserRoleSchema = z.object({
-  userId: z.uuid(),
+  userId: z.guid(),
   role: roleSchema,
 });
 export type SetUserRoleInput = z.infer<typeof setUserRoleSchema>;
 
 export const setUserActiveSchema = z.object({
-  userId: z.uuid(),
+  userId: z.guid(),
   isActive: z.boolean(),
 });
 export type SetUserActiveInput = z.infer<typeof setUserActiveSchema>;

@@ -76,7 +76,7 @@ describe("fromError", () => {
     // Shape of a real PostgrestError — a plain object, NOT an Error instance.
     const pgError = {
       code: "23505",
-      message: 'duplicate key value violates unique constraint "example_items_pkey"',
+      message: 'duplicate key value violates unique constraint "quotations_pkey"',
       details: "Key (id)=(...) already exists.",
       hint: null,
     };
@@ -88,14 +88,14 @@ describe("fromError", () => {
     });
     if (!result.ok) {
       expect(result.error).not.toContain("duplicate key");
-      expect(result.error).not.toContain("example_items_pkey");
+      expect(result.error).not.toContain("quotations_pkey");
     }
   });
 
   it("maps SQLSTATE 42501 (RLS denial) to forbidden", () => {
     const result = fromError({
       code: "42501",
-      message: 'permission denied for table "example_items"',
+      message: 'permission denied for table "quotations"',
     });
     expect(result).toEqual({
       ok: false,

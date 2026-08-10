@@ -1,0 +1,83 @@
+# Build and deploy to Cloudflare Workers — ON LINUX, deliberately.
+#
+# A Windows-built bundle does not run. The Cloudflare adapter inlines Next's
+# manifests by matching paths that end in "/server/<name>-manifest.json", but a
+# Windows build writes them as ".next\server\...", so the match fails and the
+# Worker dies at runtime with:
+#
+#   Error: Dynamic require of "/.next/server/middleware-manifest.json" is not supported
+#
+# See docs/PROJECT.md. Building here removes the whole problem: ubuntu-latest
+# produces forward-slash paths, and the bundle comes out ~400 KiB smaller too.
+#
+# Manual only by default (Actions → Deploy → Run workflow). Turn on the `push`
+# trigger below once you are happy for every merge to main to go live.
+name: deploy
+
+on:
+  workflow_dispatch:
+  # push:
+  #   branches: [main]
+
+# One deploy at a time; a newer run supersedes an older one rather than racing it.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # The same gate as local work. A broken build must never reach the Worker.
+      - run: pnpm verify
+
+      - name: Write the cloud config
+        env:
+          # NEXT_PUBLIC_* are compiled INTO the bundle, so they must be present
+          # at build time. They are safe to expose — RLS is the boundary.
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL }}
+        run: |
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL"
+            echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"
+            echo "NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL"
+          } > .env.production.local
+          # SUPABASE_SECRET_KEY is deliberately ABSENT. It bypasses RLS and the
+          # build inlines every loaded variable into the shipped bundle, so it
+          # reaches production only as a Worker secret (wrangler secret put).
+
+      - run: pnpm run build:cf
+
+      - name: Refuse to ship a bundle carrying the secret key
+        env:
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: |
+          if [ -n "$SUPABASE_SECRET_KEY" ] && grep -rq "$SUPABASE_SECRET_KEY" .open-next/; then
+            echo "::error::The service-role key was found inside the built bundle. Not deploying."
+            exit 1
+          fi
+          echo "Bundle is clean."
+
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy
+
+      - name: Check the live site answers
+        run: |
+          sleep 10
+          code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 45 "${{ secrets.NEXT_PUBLIC_SITE_URL }}/login")
+          echo "GET /login -> $code"
+          [ "$code" = "200" ] || { echo "::error::The deployed site did not return a working login page."; exit 1; }

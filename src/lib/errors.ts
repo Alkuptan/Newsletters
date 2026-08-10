@@ -3,7 +3,7 @@ import { log } from "@/lib/log";
 /**
  * Every server action returns Result<T> — the client NEVER receives a thrown
  * error. Copy the action shape from the reference slice's actions.ts (the
- * fresh template ships src/features/example-items/actions.ts).
+ * see src/features/units/actions.ts for the canonical shape).
  */
 export type Result<T> = { ok: true; data: T } | { ok: false; error: string; code: ErrorCode };
 

@@ -1,6 +1,15 @@
 "use client";
 
-import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from "@tanstack/react-table";
+import { useState } from "react";
+import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
+import {
+  flexRender,
+  getCoreRowModel,
+  getSortedRowModel,
+  useReactTable,
+  type ColumnDef,
+  type SortingState,
+} from "@tanstack/react-table";
 import {
   Table,
   TableBody,
@@ -18,18 +27,27 @@ type DataTableProps<TData, TValue> = {
 
 /**
  * Minimal generic table: columns + data in, shadcn Table out.
- * Deliberately no pagination/sorting/filtering — add TanStack pagination when
- * a list outgrows one page (see docs/template/RECIPES.md), not before.
+ *
+ * Sorting is built in — every list in this tool can be ordered by what it shows,
+ * and a table's own headers are the obvious place to click. A column opts out
+ * with `enableSorting: false` (an actions column, say). Still no pagination:
+ * add TanStack pagination when a list outgrows one page (see
+ * docs/template/RECIPES.md), not before.
  */
 export function DataTable<TData, TValue>({
   columns,
   data,
   emptyMessage = "No results.",
 }: DataTableProps<TData, TValue>) {
+  const [sorting, setSorting] = useState<SortingState>([]);
+
   const table = useReactTable({
     data,
     columns,
+    state: { sorting },
+    onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
   });
 
   return (
@@ -39,9 +57,24 @@ export function DataTable<TData, TValue>({
           <TableRow key={headerGroup.id}>
             {headerGroup.headers.map((header) => (
               <TableHead key={header.id}>
-                {header.isPlaceholder
-                  ? null
-                  : flexRender(header.column.columnDef.header, header.getContext())}
+                {header.isPlaceholder ? null : header.column.getCanSort() ? (
+                  <button
+                    type="button"
+                    onClick={header.column.getToggleSortingHandler()}
+                    className="hover:text-foreground flex cursor-pointer items-center gap-1"
+                  >
+                    {flexRender(header.column.columnDef.header, header.getContext())}
+                    {header.column.getIsSorted() === "asc" ? (
+                      <ArrowUp className="h-3 w-3 shrink-0" />
+                    ) : header.column.getIsSorted() === "desc" ? (
+                      <ArrowDown className="h-3 w-3 shrink-0" />
+                    ) : (
+                      <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-30" />
+                    )}
+                  </button>
+                ) : (
+                  flexRender(header.column.columnDef.header, header.getContext())
+                )}
               </TableHead>
             ))}
           </TableRow>

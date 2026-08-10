@@ -2,13 +2,13 @@
  * Cloudflare Workers config (deployed via @opennextjs/cloudflare).
  * Docs: https://developers.cloudflare.com/workers/wrangler/configuration/
  *
- * The /kickoff skill replaces "internal-tool-template" with your tool's name
+ * The /kickoff skill replaces "newsletter-system" with your tool's name
  * (kebab-case) in BOTH places: the worker "name" and the
  * WORKER_SELF_REFERENCE service name must match.
  */
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "internal-tool-template",
+  "name": "newsletter-system",
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-07-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
@@ -30,7 +30,7 @@
       // Self-reference service binding; the service name must match "name" above.
       // See https://opennext.js.org/cloudflare/caching
       "binding": "WORKER_SELF_REFERENCE",
-      "service": "internal-tool-template"
+      "service": "newsletter-system"
     }
   ],
   "observability": {

@@ -26,7 +26,8 @@ import {
 } from "@/components/ui/select";
 
 // Simple 3-field form → plain controlled inputs. The react-hook-form +
-// zodResolver teaching example lives in features/example-items.
+// zodResolver + react-hook-form pattern; see also features/design for the
+// plain-state alternative used by the newsletter editors.
 export function InviteUserDialog() {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");

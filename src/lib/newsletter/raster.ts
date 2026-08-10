@@ -1,0 +1,250 @@
+/**
+ * JPG and PDF export.
+ *
+ * Both are produced by rasterising the rendered newsletter in the BROWSER, so
+ * what the owner approved on screen is exactly what leaves the tool — and so no
+ * headless browser is needed on the server, which the Cloudflare Worker free
+ * tier could not run anyway.
+ *
+ * BROWSER ONLY. Import with a dynamic `import()` from a client component.
+ */
+
+import { SLIDE_HEIGHT_PX, SLIDE_WIDTH_PX, pxToInches } from "./layout";
+import { formatFooterDate } from "./dates";
+import type { NewsletterTheme } from "./theme";
+import type { NewsletterView } from "./view-model";
+
+/**
+ * How much bigger than the 1280 × 720 stage the exported bitmap is.
+ *
+ * 2.5× gives 3200 × 1800 — enough to print an A4 landscape page at roughly
+ * 240 dpi, and enough that the small Gantt labels stay readable when someone
+ * zooms in. Higher costs memory on a laptop for no visible gain.
+ */
+const EXPORT_SCALE = 2.5;
+
+/** A filename safe on Windows, without an extension. */
+function baseFileName(view: NewsletterView): string {
+  const safe = view.displayName.replace(/[\\/:*?"<>|]/g, "-");
+  return `${safe} - ${formatFooterDate(view.footerDate)}`;
+}
+
+function triggerDownload(href: string, fileName: string) {
+  const link = document.createElement("a");
+  link.href = href;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
+/**
+ * Rasterise the newsletter to a JPEG data URL.
+ *
+ * `width`/`height` are pinned to the stage rather than read from the element so
+ * a preview that happens to be CSS-scaled still exports at full size.
+ */
+async function toJpegDataUrl(element: HTMLElement): Promise<string> {
+  const { domToJpeg } = await import("modern-screenshot");
+  return domToJpeg(element, {
+    width: SLIDE_WIDTH_PX,
+    height: SLIDE_HEIGHT_PX,
+    scale: EXPORT_SCALE,
+    quality: 0.94,
+    // JPEG has no transparency; without this, anything not painted comes out
+    // black rather than white.
+    backgroundColor: "#FFFFFF",
+  });
+}
+
+/** Download the newsletter as a JPG. */
+export async function exportNewsletterJpg(
+  element: HTMLElement,
+  view: NewsletterView,
+): Promise<void> {
+  const dataUrl = await toJpegDataUrl(element);
+  triggerDownload(dataUrl, `${baseFileName(view)}.jpg`);
+}
+
+/**
+ * Download the newsletter as a one-page PDF.
+ *
+ * The page is exactly the slide's 13.333 × 7.5 inches, so the newsletter fills
+ * it edge to edge with no margins to trim and no scaling surprises.
+ */
+export async function exportNewsletterPdf(
+  element: HTMLElement,
+  view: NewsletterView,
+): Promise<void> {
+  const [dataUrl, { jsPDF }] = await Promise.all([
+    toJpegDataUrl(element),
+    import("jspdf"),
+  ]);
+
+  const widthInches = pxToInches(SLIDE_WIDTH_PX);
+  const heightInches = pxToInches(SLIDE_HEIGHT_PX);
+
+  const pdf = new jsPDF({
+    orientation: "landscape",
+    unit: "in",
+    format: [widthInches, heightInches],
+    compress: true,
+  });
+  pdf.addImage(dataUrl, "JPEG", 0, 0, widthInches, heightInches);
+  pdf.save(`${baseFileName(view)}.pdf`);
+}
+
+/**
+ * A cycle PDF, built one page at a time.
+ *
+ * A builder rather than a function taking every element, because the caller only
+ * keeps a handful of newsletters mounted at once — a hundred of them in the DOM
+ * together is what makes a laptop crawl. Pages are added as they are rendered
+ * and the elements are then free to be unmounted.
+ */
+export async function createCyclePdf(): Promise<{
+  addPage: (element: HTMLElement) => Promise<void>;
+  save: (fileName: string) => void;
+  pages: () => number;
+}> {
+  const { jsPDF } = await import("jspdf");
+  const widthInches = pxToInches(SLIDE_WIDTH_PX);
+  const heightInches = pxToInches(SLIDE_HEIGHT_PX);
+
+  const pdf = new jsPDF({
+    orientation: "landscape",
+    unit: "in",
+    format: [widthInches, heightInches],
+    compress: true,
+  });
+  let count = 0;
+
+  return {
+    async addPage(element) {
+      // The first page already exists; every later one has to be added.
+      if (count > 0) pdf.addPage([widthInches, heightInches], "landscape");
+      const dataUrl = await toJpegDataUrl(element);
+      pdf.addImage(dataUrl, "JPEG", 0, 0, widthInches, heightInches);
+      count += 1;
+    },
+    save(fileName) {
+      if (count === 0) throw new Error("Nothing is ready to export.");
+      pdf.save(fileName);
+    },
+    pages: () => count,
+  };
+}
+
+/**
+ * A separate PDF and image for every unit, collected as they are rendered and
+ * delivered as one zip.
+ *
+ * The owner asked for one file per unit, named "Ancient Hill 56 newsletter" —
+ * which is exactly what unzips out of this. A browser cannot hand over eighty
+ * loose downloads (it blocks them after a few), so the zip is the only way to
+ * deliver individually-named files in one action.
+ */
+export async function createPerUnitZip(): Promise<{
+  add: (displayName: string, element: HTMLElement) => Promise<void>;
+  finish: (zipFileName: string) => Promise<void>;
+  count: () => number;
+}> {
+  const { jsPDF } = await import("jspdf");
+  const widthInches = pxToInches(SLIDE_WIDTH_PX);
+  const heightInches = pxToInches(SLIDE_HEIGHT_PX);
+  const files: Record<string, Uint8Array> = {};
+  let count = 0;
+
+  return {
+    async add(displayName, element) {
+      const dataUrl = await toJpegDataUrl(element);
+      const safe = displayName.replace(/[\/:*?"<>|]/g, "-").trim();
+      const base = `${safe} newsletter`;
+
+      // The image, straight from the same capture the PDF uses.
+      files[`${base}.jpg`] = dataUrlToBytes(dataUrl);
+
+      // A one-page PDF at exactly the slide's size.
+      const pdf = new jsPDF({
+        orientation: "landscape",
+        unit: "in",
+        format: [widthInches, heightInches],
+        compress: true,
+      });
+      pdf.addImage(dataUrl, "JPEG", 0, 0, widthInches, heightInches);
+      files[`${base}.pdf`] = new Uint8Array(pdf.output("arraybuffer"));
+      count += 1;
+    },
+
+    async finish(zipFileName) {
+      if (count === 0) throw new Error("Nothing is ready to export.");
+      const { zip } = await import("fflate");
+      const zipped = await new Promise<Uint8Array>((resolve, reject) => {
+        // Level 0: the contents are already-compressed JPEG and PDF, so
+        // squeezing again costs seconds and saves almost nothing.
+        zip(files, { level: 0 }, (error, data) => (error ? reject(error) : resolve(data)));
+      });
+
+      const url = URL.createObjectURL(
+        new Blob([zipped as BlobPart], { type: "application/zip" }),
+      );
+      try {
+        triggerDownload(url, zipFileName);
+      } finally {
+        setTimeout(() => URL.revokeObjectURL(url), 10_000);
+      }
+    },
+
+    count: () => count,
+  };
+}
+
+/** The bytes behind a `data:` URL. */
+function dataUrlToBytes(dataUrl: string): Uint8Array {
+  const base64 = dataUrl.slice(dataUrl.indexOf(",") + 1);
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+/** A whole cycle as ONE deck, a slide per newsletter. */
+export async function exportCyclePptx(
+  items: readonly { view: NewsletterView; theme?: NewsletterTheme }[],
+  fileName: string,
+  onProgress?: (done: number, total: number) => void,
+): Promise<void> {
+  const { buildCyclePptx } = await import("./pptx");
+  const { DEFAULT_THEME } = await import("./theme");
+  const blob = await buildCyclePptx(
+    items.map((item) => ({ view: item.view, theme: item.theme ?? DEFAULT_THEME })),
+    onProgress,
+  );
+  const url = URL.createObjectURL(blob);
+  try {
+    triggerDownload(url, fileName);
+  } finally {
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  }
+}
+
+/**
+  * Download the newsletter as an editable PowerPoint slide.
+  *
+  * Takes the same resolved design the preview used, so the slide is what the
+  * owner just approved on screen rather than the original template.
+  */
+export async function exportNewsletterPptx(
+  view: NewsletterView,
+  theme?: NewsletterTheme,
+): Promise<void> {
+  const { buildNewsletterPptx, pptxFileName } = await import("./pptx");
+  const blob = await buildNewsletterPptx(view, theme);
+  const url = URL.createObjectURL(blob);
+  try {
+    triggerDownload(url, pptxFileName(view));
+  } finally {
+    // Give the click a moment to start before revoking the object URL.
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  }
+}

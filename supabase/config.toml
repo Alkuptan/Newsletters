@@ -3,7 +3,7 @@
 # /kickoff (Phase B) sets project_id to your tool's name BEFORE the first
 # `supabase start` — a stack started under the template name collides with
 # other template-derived projects on the same machine.
-project_id = "internal-tool-template"
+project_id = "newsletter-system"
 
 [api]
 enabled = true

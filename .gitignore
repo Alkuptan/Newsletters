@@ -2,6 +2,8 @@
 
 # dependencies
 /node_modules
+# pnpm's local package cache — 1.2 GB of downloaded tarballs, never source
+/.pnpm-store/
 /.pnp
 .pnp.*
 .yarn/*
@@ -55,3 +57,8 @@ cloudflare-env.d.ts
 
 # keep the example env template tracked despite .env* above
 !.env.example
+
+# Real programme data — the follow-up sheet and the original newsletters.
+# Deliberately never published: it carries live unit values, PM names and
+# client names. The tests that need it skip when it is absent.
+/Sample/
