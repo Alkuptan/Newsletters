@@ -122,6 +122,54 @@ is in `docs/WINDOWS-VS-LINUX-BUILD.md`.
 
 **Everything else in the go-live is done and working** — see docs/PROGRESS.md.
 
+### The GitHub repository is public, and the local history is NOT publishable
+
+`Alkuptan/Newsletters` is public. The local `master` history is not: while the
+calculation engine was being built, the sample fixtures, the seed and several
+tests carried real quotation references, invoice numbers and contract values for
+five named El Gouna units, lifted from the live follow-up sheet. Those commits
+still exist on the owner's machine and must never reach the remote.
+
+So the published `main` is a **single scrubbed snapshot**, not the history, and
+the two branches are deliberately unrelated. Publishing an update means making a
+new commit whose tree is the current clean tree and whose parent is what is
+already on `main`:
+
+```sh
+TREE=$(git rev-parse master^{tree})
+COMMIT=$(git commit-tree "$TREE" -p origin/main -m "…")
+git push origin "$COMMIT:main"        # a fast-forward; no --force, nothing lost
+```
+
+**Never `git push --force`, and never push `master` itself** — either publishes
+the unscrubbed history. `git filter-branch`/`filter-repo` would clean it properly,
+but it is a destructive rewrite and was deliberately not run.
+
+Before any publish, re-run the two checks that matter, because both caught real
+leaks the first time:
+
+1. Every real figure, in every format it can take — plain, two-decimal, rounded,
+   comma-grouped and underscore-grouped. A first pass matching only bare numbers
+   missed `"1,331,297 LE"` in the e2e spec and quote numbers in two documents.
+2. Every secret-shaped value in `.env.local` and `.env.production.local` against
+   every tracked file. `scripts/check-bundle-secrets.mjs` does this for the
+   deploy artifact and is the model for it.
+
+What is safe and expected to appear: the sheet's **column headers** and status
+words (the tool must name them to read the sheet), and El Gouna's development
+names (Ancient Hill, Cyan, Fanadir — public). Client and PM names in fixtures are
+invented, and `public/dev-samples/*.jpg` are generated placeholders, not site
+photos.
+
+### The `deploy` workflow on GitHub needs six repository secrets
+
+`.github/workflows/deploy.yml` reads `NEXT_PUBLIC_SUPABASE_URL`,
+`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_SITE_URL`,
+`SUPABASE_SECRET_KEY`, `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. **None
+are set yet**, so the documented "Actions → deploy → Run workflow" route cannot
+run; today's deploys are built in a Linux Docker container on the owner's machine
+and uploaded from there. `ci.yml` needs no secrets and is green.
+
 ## Graduation triggers
 
 <!-- Requests the scope guard blocked (RULES.md). Each becomes an agenda item
