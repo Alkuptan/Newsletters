@@ -261,10 +261,39 @@ export function UnitMailPanel({
         </div>
 
         <p className="text-muted-foreground text-xs">
-          The first button downloads a message file. Open it and Outlook shows a draft addressed and
-          written, with the newsletter in the body and the PDF attached — check it, then press Send.
-          It goes from your own mailbox, with your signature.
+          The first button builds the message. Outlook shows it as a draft — addressed, written, the
+          newsletter in the body, the PDF attached — and you press Send. It goes from your own
+          mailbox, with your signature.
         </p>
+
+        <details className="text-xs">
+          <summary className="text-muted-foreground cursor-pointer">
+            Make it open Outlook straight away (one-time browser setting)
+          </summary>
+          {/*
+            A web page cannot start a program on the computer — no browser allows
+            it, and that is a security boundary rather than something to code
+            around. What CAN be done is tell the browser to open this KIND of file
+            automatically once it has been downloaded, after which the button and
+            the Outlook draft feel like one action.
+          */}
+          <div className="text-muted-foreground mt-2 space-y-1.5">
+            <p>
+              A web page is not allowed to start a program on your computer, so the message has to
+              arrive as a download first. Your browser can be told to open it automatically:
+            </p>
+            <ol className="ml-4 list-decimal space-y-1">
+              <li>Press the button above once. The message appears in the downloads bar.</li>
+              <li>
+                Click the small arrow or <strong>…</strong> next to it and choose{" "}
+                <strong>Always open files of this type</strong> (Edge may word it{" "}
+                <strong>Always open with system app</strong>).
+              </li>
+              <li>From then on, pressing the button opens the Outlook draft by itself.</li>
+            </ol>
+            <p>You only do this once, on each computer you use.</p>
+          </div>
+        </details>
 
         {outlook.truncated && (
           <p className="text-xs text-amber-600 dark:text-amber-500">
