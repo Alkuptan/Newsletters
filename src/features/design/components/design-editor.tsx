@@ -204,10 +204,32 @@ export function DesignEditor({
   const [overrides, setOverrides] = useState<ThemeOverrides>(initial);
   const [pending, startTransition] = useTransition();
 
+  /*
+    What was last written to the database, so unsaved edits can be pointed out.
+
+    This preview updates as you drag; the big newsletter above it, the JPG, the
+    PDF and the emailed copy all come from the SAVED design. The owner exported
+    while a change was still unsaved, got the previous design, and reasonably
+    concluded the tool was ignoring them — so the gap now says so out loud.
+  */
+  const [saved, setSaved] = useState<ThemeOverrides>(initial);
+
   const theme = useMemo(
     () => resolveTheme(masterOverrides ?? null, overrides),
     [masterOverrides, overrides],
   );
+  const savedTheme = useMemo(
+    () => resolveTheme(masterOverrides ?? null, saved),
+    [masterOverrides, saved],
+  );
+  /*
+    The resolved DESIGNS are compared, not the override objects.
+
+    Typing a value away and back leaves an explicit entry where there was none,
+    so the objects differ while the newsletter is identical — and a warning that
+    will not go away teaches people to ignore warnings.
+  */
+  const unsaved = JSON.stringify(theme) !== JSON.stringify(savedTheme);
   // Values under the ones being edited — what "reset this value" goes back to.
   const beneath = useMemo(() => resolveTheme(masterOverrides ?? null, null), [masterOverrides]);
   const fits = leftColumnFits(theme);
@@ -303,6 +325,8 @@ export function DesignEditor({
         return;
       }
       if (next === null) setOverrides({});
+      // Now the saved design and the preview agree again.
+      setSaved(next === null ? {} : next);
       toast.success(next === null ? `${scopeLabel} back to the original.` : `${scopeLabel} saved.`);
     });
   }
@@ -696,9 +720,16 @@ export function DesignEditor({
             <NewsletterCanvas view={view} theme={theme} />
           </div>
         </div>
-        <p className="text-muted-foreground text-xs">
-          A real unit, so you are judging the design against your own figures.
-        </p>
+        {unsaved ? (
+          <p className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+            <strong>Not saved yet.</strong> This preview shows your change, but the newsletter above
+            it — and the JPG, the PDF and the email — still use the saved design. Press Save.
+          </p>
+        ) : (
+          <p className="text-muted-foreground text-xs">
+            A real unit, so you are judging the design against your own figures.
+          </p>
+        )}
       </div>
     </div>
   );

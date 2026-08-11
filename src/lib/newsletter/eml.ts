@@ -130,8 +130,22 @@ export function bodyHtml(
       .map((block) => `<p>${htmlEscape(block).replace(/\n/g, "<br>")}</p>`)
       .join("\n");
 
+  /*
+    The `width` ATTRIBUTE, not just CSS.
+
+    Outlook on Windows renders mail through Word, which ignores `max-width` and
+    `width:100%` on an image entirely — it draws the picture at its natural pixel
+    size. A 3200px-wide newsletter therefore filled the message however small the
+    CSS said it should be, which is exactly what the owner reported after the
+    first attempt at this. The old HTML attribute is the one Word obeys.
+
+    The embedded picture is also scaled down before it gets here (see
+    `exportNewsletterEml`), so its natural size is already close to this number —
+    belt and braces, and a much smaller email.
+  */
   const picture = inlineContentId
-    ? `<p><img src="cid:${inlineContentId}" alt="Newsletter" style="width:100%;max-width:${widthPx}px;height:auto;border:0"></p>`
+    ? `<p><img src="cid:${inlineContentId}" alt="Newsletter" width="${widthPx}" ` +
+      `style="width:${widthPx}px;max-width:100%;height:auto;display:block;border:0"></p>`
     : "";
 
   const [before, ...rest] = body.split(NEWSLETTER_MARKER);

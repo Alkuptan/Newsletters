@@ -91,6 +91,38 @@ export async function exportNewsletterPdf(
   pdf.save(`${baseFileName(view)}.pdf`);
 }
 
+/**
+ * Redraw a JPEG data URL at a smaller width.
+ *
+ * The export is 3200px wide, which is right for the PDF and far too big for a
+ * message body: Outlook draws an image at its natural size regardless of CSS, so
+ * a huge picture stays huge. Scaling the actual pixels is the only fix that holds
+ * in every mail client, and it makes the email several times smaller.
+ *
+ * Drawn at twice the display width so it still looks sharp on a high-resolution
+ * screen, and never scaled UP.
+ */
+async function downscaleJpeg(dataUrl: string, displayWidth: number): Promise<string> {
+  const image = new Image();
+  image.src = dataUrl;
+  await image.decode();
+
+  const wanted = Math.min(image.naturalWidth, Math.round(displayWidth * 2));
+  if (wanted >= image.naturalWidth) return dataUrl;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = wanted;
+  canvas.height = Math.round((image.naturalHeight * wanted) / image.naturalWidth);
+  const context = canvas.getContext("2d");
+  if (!context) return dataUrl;
+
+  // Smoothing matters at this ratio: without it the Gantt labels alias badly.
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = "high";
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", 0.9);
+}
+
 /** Base64 in chunks: `String.fromCharCode(...bytes)` overflows the stack on a 5 MB PDF. */
 function bytesToBase64(bytes: Uint8Array): string {
   let binary = "";
@@ -129,7 +161,9 @@ export async function exportNewsletterEml(
     import("jspdf"),
   ]);
 
-  const jpegBase64 = dataUrl.slice(dataUrl.indexOf(",") + 1);
+  // The body gets a scaled copy; the PDF below keeps the full-size render.
+  const bodyDataUrl = await downscaleJpeg(dataUrl, message.imageWidthPx ?? 500);
+  const jpegBase64 = bodyDataUrl.slice(bodyDataUrl.indexOf(",") + 1);
 
   const widthInches = pxToInches(SLIDE_WIDTH_PX);
   const heightInches = pxToInches(SLIDE_HEIGHT_PX);

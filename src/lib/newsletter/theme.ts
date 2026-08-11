@@ -111,21 +111,31 @@ export type BoxKey = keyof BoxHeights;
 
 /**
  * The space BETWEEN the boxes, which the owner asked to control separately from
- * the boxes themselves. Taken from the original design so the defaults
- * reproduce it exactly.
+ * the boxes themselves.
+ *
+ * These began as the gaps derived from the original PowerPoint, which reproduced
+ * it exactly but left the left column unevenly spaced — the original was laid out
+ * by eye, box by box. Having used the controls on real units the owner asked for
+ * **one even gap of 13 everywhere**, which is what these now are.
+ *
+ * A master or a single unit can still override any of them; this is only where
+ * everything starts.
  */
+const EVEN_GAP = 13;
+
 export const GAP_DEFAULTS = {
-  belowUnitHeader: LAYOUT.left.infoBox.y - LAYOUT.left.unitHeader.y - LAYOUT.left.unitHeader.height,
-  belowInfoBox: LAYOUT.left.amountBox.y - LAYOUT.left.infoBox.y - LAYOUT.left.infoBox.height,
-  belowAmountBox: LAYOUT.left.cardRow.y - LAYOUT.left.amountBox.y - LAYOUT.left.amountBox.height,
-  belowCardRow: LAYOUT.left.statusRow.y - LAYOUT.left.cardRow.y - LAYOUT.left.cardRow.height,
-  aboveMetrics:
-    LAYOUT.left.metricsRow.y -
-    Math.max(
-      LAYOUT.left.statusRow.y + LAYOUT.left.statusRow.height,
-      LAYOUT.left.concern.y + LAYOUT.left.concern.height,
-    ),
-  /** Logo panel → whatever is under it on the right (timeline or photos). */
+  belowUnitHeader: EVEN_GAP,
+  belowInfoBox: EVEN_GAP,
+  belowAmountBox: EVEN_GAP,
+  belowCardRow: EVEN_GAP,
+  aboveMetrics: EVEN_GAP,
+  /**
+   * Logo panel → whatever is under it on the right (timeline or photos).
+   *
+   * Zero, not `EVEN_GAP`: the logo sits in the right-hand column where a gap
+   * pushes the timeline and the photos down into the footer, so the owner wants
+   * none here.
+   */
   belowLogo: 0,
 } as const;
 

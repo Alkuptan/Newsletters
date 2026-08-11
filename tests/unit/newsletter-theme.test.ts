@@ -72,10 +72,7 @@ describe("a unit's own changes", () => {
   });
 
   it("can turn a line back ON that the master hid", () => {
-    const theme = resolveTheme(
-      { fields: { clientName: false } },
-      { fields: { clientName: true } },
-    );
+    const theme = resolveTheme({ fields: { clientName: false } }, { fields: { clientName: true } });
     expect(theme.fields.clientName).toBe(true);
   });
 
@@ -143,17 +140,42 @@ describe("limits, so no setting can ruin a page", () => {
 });
 
 describe("the left column, stacked from the box heights", () => {
-  it("reproduces the original design exactly when nothing is overridden", () => {
-    // The single most important property of this refactor: making the heights
-    // adjustable must not move anything by so much as a pixel by default.
+  it("stacks with one even gap between every box", () => {
+    /*
+      This used to assert the ORIGINAL PowerPoint's positions, on the grounds that
+      making the heights adjustable must not move anything. That held until the
+      owner used the controls on real units and asked for an even gap of 13
+      everywhere — the original was spaced by eye, from 8px to 44px between
+      boxes, which looked accidental once it could be compared.
+
+      So the property being protected is now the stacking rule rather than the
+      old numbers: every box sits exactly one gap below the one above it.
+    */
     const column = resolveLeftColumn(DEFAULT_THEME);
+    const gap = 13;
+
     expect(column.unitHeader).toEqual({ y: 30, height: 66 });
-    expect(column.infoBox).toEqual({ y: 122, height: 84 });
-    expect(column.amountBox).toEqual({ y: 250, height: 50 });
-    expect(column.cardRow.y).toBe(324);
-    expect(column.statusRow.y).toBe(404);
-    expect(column.concern).toEqual({ y: 324, height: 152 });
-    expect(column.metricsRow).toEqual({ y: 492, height: 156 });
+    expect(column.infoBox.y).toBe(column.unitHeader.y + column.unitHeader.height + gap);
+    expect(column.amountBox.y).toBe(column.infoBox.y + column.infoBox.height + gap);
+    expect(column.cardRow.y).toBe(column.amountBox.y + column.amountBox.height + gap);
+    expect(column.statusRow.y).toBe(column.cardRow.y + column.cardRow.height + gap);
+
+    // The Area of Concern sits beside the cards, so it starts level with them.
+    expect(column.concern.y).toBe(column.cardRow.y);
+
+    // Progress and Elapsed clear whichever of the two columns runs lower.
+    const clears = Math.max(
+      column.statusRow.y + column.statusRow.height,
+      column.concern.y + column.concern.height,
+    );
+    expect(column.metricsRow.y).toBe(clears + gap);
+  });
+
+  it("still fits inside the page with the even gaps", () => {
+    // Tighter than the original, so this is a floor rather than a ceiling — but
+    // a default that overflowed would break every newsletter at once.
+    const column = resolveLeftColumn(DEFAULT_THEME);
+    expect(column.metricsRow.y + column.metricsRow.height).toBeLessThan(660);
   });
 
   it("pushes everything below a box down when that box grows", () => {

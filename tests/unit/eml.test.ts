@@ -160,20 +160,31 @@ describe("things that would corrupt the message", () => {
     expect(html).not.toContain("<p></p>");
   });
 
-  it("caps the picture's width at the width asked for", () => {
-    expect(bodyHtml("x", "newsletter", 500)).toContain("max-width:500px");
-    expect(bodyHtml("x", "newsletter", 900)).toContain("max-width:900px");
-    // Always a maximum with a fluid width, so a narrow pane shrinks it instead
-    // of scrolling sideways.
-    expect(bodyHtml("x", "newsletter", 500)).toContain("width:100%");
+  it("sets the width as an ATTRIBUTE, which is the one Outlook obeys", () => {
+    /*
+      Outlook on Windows renders through Word, which ignores max-width and
+      width:100% on an image and draws it at its natural pixel size. CSS alone
+      left a 3200px newsletter filling the message — the owner reported exactly
+      that. The old HTML attribute is what works.
+    */
+    expect(bodyHtml("x", "newsletter", 500)).toContain('width="500"');
+    expect(bodyHtml("x", "newsletter", 900)).toContain('width="900"');
+  });
+
+  it("also sets it in CSS, for the clients that prefer that", () => {
+    const html = bodyHtml("x", "newsletter", 500);
+    expect(html).toContain("width:500px");
+    // max-width:100% keeps it inside a narrow reading pane rather than
+    // scrolling sideways.
+    expect(html).toContain("max-width:100%");
   });
 
   it("defaults to half the original width", () => {
-    expect(bodyHtml("x", "newsletter")).toContain("max-width:500px");
+    expect(bodyHtml("x", "newsletter")).toContain('width="500"');
   });
 
   it("carries the width through the whole message", () => {
-    expect(buildEml({ ...message, imageWidthPx: 700 })).toContain("max-width:700px");
+    expect(buildEml({ ...message, imageWidthPx: 700 })).toContain('width="700"');
   });
 
   it("removes the marker even when there is no picture to place", () => {
