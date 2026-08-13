@@ -15,7 +15,7 @@
     "db:new": "node scripts/new-migration.mjs",
     "db:reset": "supabase db reset",
     "db:push": "dotenv -e .env.production.local -- supabase db push",
-    "db:types": "dotenv -e .env.production.local -- sh -c 'supabase gen types typescript --linked > src/lib/supabase/database.types.ts'",
+    "db:types": "dotenv -e .env.production.local -- supabase gen types typescript --linked > src/lib/supabase/database.types.ts",
     "db:types:local": "supabase gen types typescript --local > src/lib/supabase/database.types.ts",
     "check:bundle": "node scripts/check-bundle-secrets.mjs",
     "migration-lint": "node scripts/migration-lint.mjs",
