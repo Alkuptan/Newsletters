@@ -21,7 +21,8 @@ import { formatFooterDate } from "./dates";
  * reasonably type per unit, and anything else belongs in the sentence itself.
  */
 export const MAIL_PLACEHOLDERS = [
-  { token: "{client}", describes: "the client line, titles included" },
+  { token: "{firstname}", describes: "title and first name, e.g. Mr. Gasser — for the greeting" },
+  { token: "{client}", describes: "the client's full name, titles included" },
   { token: "{unit}", describes: "the unit's name on the newsletter" },
   { token: "{date}", describes: "the edition date, e.g. 14 June 2026" },
   { token: "{pm}", describes: "the project manager's name" },
@@ -49,6 +50,8 @@ export function withoutImageMarker(body: string): string {
 export interface MailFacts {
   /** The composed client line, e.g. "Mr. Gasser El Sayed Ibrahim". */
   clientLine: string | null;
+  /** The greeting form, e.g. "Mr. Gasser". */
+  greetingLine: string | null;
   unitName: string;
   editionDate: Date;
   pmName: string | null;
@@ -63,11 +66,17 @@ export interface MailFacts {
  * sender will notice and fix.
  */
 export function fillTemplate(template: string, facts: MailFacts): string {
-  return template
-    .replaceAll("{client}", facts.clientLine ?? "Sir or Madam")
-    .replaceAll("{unit}", facts.unitName)
-    .replaceAll("{date}", formatFooterDate(facts.editionDate))
-    .replaceAll("{pm}", facts.pmName ?? "the project team");
+  return (
+    template
+      // Before {client}: "{firstname}" contains no "{client}", but replacing the
+      // shorter token first would leave "{firstname}" half-substituted if the two
+      // ever overlapped. Order stated rather than relied on.
+      .replaceAll("{firstname}", facts.greetingLine ?? "Sir or Madam")
+      .replaceAll("{client}", facts.clientLine ?? "Sir or Madam")
+      .replaceAll("{unit}", facts.unitName)
+      .replaceAll("{date}", formatFooterDate(facts.editionDate))
+      .replaceAll("{pm}", facts.pmName ?? "the project team")
+  );
 }
 
 /** Which placeholders a piece of wording actually uses, for the editor's help text. */
@@ -168,6 +177,7 @@ export function prepareMail(
 ): PreparedMail {
   const facts: MailFacts = {
     clientLine: unit.clientLine,
+    greetingLine: unit.greetingLine,
     unitName: unit.unitName,
     editionDate: unit.editionDate,
     pmName: unit.pmName,

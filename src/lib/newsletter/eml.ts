@@ -55,6 +55,16 @@ export interface EmlMessage {
   threadTopic?: string;
   /** Caps the inline picture's width in the message body. */
   imageWidthPx?: number;
+  /**
+   * The sender's sign-off, appended at the end.
+   *
+   * Outlook adds a signature to a message IT composes, not to one it opens from a
+   * file, so a prepared draft arrives unsigned unless the signature travels with
+   * it. Treated as plain text, not HTML: a pasted signature with broken markup
+   * would break the whole message, and the failure would be visible only to the
+   * client.
+   */
+  signature?: string;
 }
 
 /** Base64 must be wrapped; some servers reject lines over 998 characters. */
@@ -121,6 +131,7 @@ export function bodyHtml(
   body: string,
   inlineContentId?: string,
   widthPx: number = DEFAULT_IMAGE_WIDTH_PX,
+  signature?: string,
 ): string {
   const paragraphs = (text: string) =>
     text
@@ -155,13 +166,25 @@ export function bodyHtml(
         [paragraphs(before), picture, paragraphs(rest.join(""))]
       : [paragraphs(body), picture];
 
+  /*
+    Escaped, not trusted as HTML. A signature is pasted in by a person, and one
+    stray unclosed tag would break the rest of the message — visibly, and only to
+    the client.
+  */
+  const signedOff = signature?.trim()
+    ? `<p>${htmlEscape(signature.trim()).replace(/\n/g, "<br>")}</p>`
+    : "";
+
   return [
     "<html><body>",
     '<div style="font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#000">',
     ...content.filter(Boolean),
+    signedOff,
     "</div>",
     "</body></html>",
-  ].join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 function part(attachment: EmlAttachment, disposition: "inline" | "attachment"): string {
@@ -194,7 +217,12 @@ export function buildEml(message: EmlMessage): string {
   const related = "----newsletter-related-boundary";
 
   const attachments = message.attachments ?? [];
-  const html = bodyHtml(message.body, message.inline?.contentId, message.imageWidthPx);
+  const html = bodyHtml(
+    message.body,
+    message.inline?.contentId,
+    message.imageWidthPx,
+    message.signature,
+  );
 
   const headers = [
     `To: ${message.to.map(safeHeader).join(", ")}`,

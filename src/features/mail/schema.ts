@@ -47,6 +47,11 @@ export const saveMailSettingsSchema = z.object({
     .min(200, "Below 200 the newsletter is unreadable in an email.")
     .max(1400, "Above 1400 it forces a sideways scroll in Outlook.")
     .default(500),
+  // Empty is normal: many people would rather let Outlook sign it.
+  signature: z
+    .string()
+    .max(4000, "That signature is too long — 4000 characters at most.")
+    .default(""),
 });
 export type SaveMailSettingsInput = z.infer<typeof saveMailSettingsSchema>;
 

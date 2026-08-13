@@ -11,7 +11,7 @@ import "server-only";
 
 import { aggregateQuotations } from "@/lib/newsletter/aggregate";
 import { findScheduleDrift } from "@/lib/newsletter/changes";
-import { fromIsoDate } from "@/lib/newsletter/dates";
+import { fromIsoDate, toIsoDate } from "@/lib/newsletter/dates";
 import {
   scheduleStateOf,
   type ScheduleState,
@@ -142,7 +142,15 @@ async function scoreUnits(filters: UnitListFilters) {
       Note this is about being CHASED, not about being allowed: any unit can
       still be exported deliberately.
     */
-    const needsNewsletter = state === "ready" || state === "needs-photos";
+    /*
+      A paused unit is not chased either. The pause carries a DATE, so this is
+      "is it still paused today" rather than a flag someone has to remember to
+      turn off — an expired pause simply stops applying.
+    */
+    const pausedUntil = unit.paused_until;
+    const paused = Boolean(pausedUntil && pausedUntil >= toIsoDate(new Date()));
+
+    const needsNewsletter = !paused && (state === "ready" || state === "needs-photos");
 
     const timeline: ScheduleState = scheduleStateOf({
       plan: (unit.schedule_plan as SchedulePlan) ?? null,
@@ -160,6 +168,8 @@ async function scoreUnits(filters: UnitListFilters) {
       lastReleased,
       lastSent,
       needsNewsletter,
+      paused,
+      pausedUntil,
       edition,
     };
   });

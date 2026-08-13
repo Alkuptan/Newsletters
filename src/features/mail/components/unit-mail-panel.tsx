@@ -91,6 +91,7 @@ export function UnitMailPanel({
   sentThisCycle,
   history,
   imageWidthPx,
+  signature,
   canEdit,
 }: {
   mail: PreparedMail;
@@ -105,6 +106,8 @@ export function UnitMailPanel({
   history: SendHistory;
   /** How wide the newsletter picture is in the message body. */
   imageWidthPx: number;
+  /** Appended to the prepared message, since Outlook will not add it. */
+  signature: string;
   canEdit: boolean;
 }) {
   const [body, setBody] = useState(mail.body);
@@ -148,6 +151,7 @@ export function UnitMailPanel({
         subject: mail.subject,
         body, // with the marker: it decides where the picture goes
         imageWidthPx,
+        signature,
       });
       toast.success("Message downloaded. Open it and Outlook will show it ready to send.");
     } catch (error) {

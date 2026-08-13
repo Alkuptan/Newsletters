@@ -52,6 +52,20 @@ export const setUnitClientsSchema = z.object({
 });
 export type SetUnitClientsInput = z.infer<typeof setUnitClientsSchema>;
 
+/**
+ * Pausing a unit until a date.
+ *
+ * A date, never a boolean: "paused" with no end is how a unit gets forgotten, so
+ * the pause expires by itself. `null` resumes it now.
+ */
+export const setPauseSchema = z.object({
+  unitId: z.guid(),
+  pausedUntil: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "That is not a date the tool understands.")
+    .nullable(),
+});
+
 /** Editing the details the owner types once per unit. */
 export const updateUnitSchema = z.object({
   id: z.guid(),

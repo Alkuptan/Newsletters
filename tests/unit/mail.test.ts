@@ -16,6 +16,7 @@ import {
 
 const facts = {
   clientLine: "Mr. Gasser El Sayed Ibrahim",
+  greetingLine: "Mr. Gasser",
   unitName: "Ancient Hill 56",
   editionDate: new Date(2026, 5, 14),
   pmName: "Nouran Amer",

@@ -251,6 +251,7 @@ export type Database = {
           created_at: string;
           id: boolean;
           image_width_px: number;
+          signature_html: string | null;
           subject_template: string;
           updated_at: string;
           updated_by: string | null;
@@ -261,6 +262,7 @@ export type Database = {
           created_at?: string;
           id?: boolean;
           image_width_px?: number;
+          signature_html?: string | null;
           subject_template?: string;
           updated_at?: string;
           updated_by?: string | null;
@@ -271,6 +273,7 @@ export type Database = {
           created_at?: string;
           id?: boolean;
           image_width_px?: number;
+          signature_html?: string | null;
           subject_template?: string;
           updated_at?: string;
           updated_by?: string | null;
@@ -627,6 +630,7 @@ export type Database = {
           onedrive_folder_url: string | null;
           patch: string | null;
           patch_changed_at: string | null;
+          paused_until: string | null;
           schedule_plan: string | null;
           stage_override: Database["public"]["Enums"]["project_stage"] | null;
           unit_code: string;
@@ -649,6 +653,7 @@ export type Database = {
           onedrive_folder_url?: string | null;
           patch?: string | null;
           patch_changed_at?: string | null;
+          paused_until?: string | null;
           schedule_plan?: string | null;
           stage_override?: Database["public"]["Enums"]["project_stage"] | null;
           unit_code: string;
@@ -671,6 +676,7 @@ export type Database = {
           onedrive_folder_url?: string | null;
           patch?: string | null;
           patch_changed_at?: string | null;
+          paused_until?: string | null;
           schedule_plan?: string | null;
           stage_override?: Database["public"]["Enums"]["project_stage"] | null;
           unit_code?: string;

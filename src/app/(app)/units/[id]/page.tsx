@@ -13,6 +13,7 @@ import {
   currentPmAliases,
   getUnit,
   latestEdition,
+  listUnitFacets,
   unitSentDates,
   unitSentThisCycle,
 } from "@/features/units/queries";
@@ -22,6 +23,7 @@ import { ClientEditor } from "@/features/units/components/client-editor";
 import { UnitMailPanel } from "@/features/mail/components/unit-mail-panel";
 import { getMailSettings, listPmRouting } from "@/features/mail/queries";
 import { prepareMail } from "@/lib/newsletter/mail";
+import { greetingLine } from "@/lib/newsletter/clients";
 import { sendHistoryFrom } from "@/lib/newsletter/outlook";
 import { stageForUnit } from "@/lib/newsletter/stage";
 import { areaOfConcernBullets } from "@/lib/newsletter/area-of-concern";
@@ -45,6 +47,7 @@ import { tidyZone } from "@/lib/newsletter/display-name";
 import { unitNeighbours, type UnitListFilters } from "@/features/units/list";
 import { UnitNav } from "@/features/units/components/unit-nav";
 import { SchedulePlanPicker } from "@/features/units/components/schedule-plan-picker";
+import { UnitShortcuts } from "@/features/units/components/unit-shortcuts";
 import { Button } from "@/components/ui/button";
 
 export const metadata = { title: "Unit" };
@@ -66,7 +69,7 @@ export default async function UnitPage({
   const unit = await getUnit(id);
   if (!unit) notFound();
 
-  const [aliases, edition, templates, neighbours, mailSettings, pmRouting, sentDates] =
+  const [aliases, edition, templates, neighbours, mailSettings, pmRouting, sentDates, facets] =
     await Promise.all([
       currentPmAliases(),
       latestEdition(),
@@ -75,6 +78,7 @@ export default async function UnitPage({
       getMailSettings(),
       listPmRouting(),
       unitSentDates(id),
+      listUnitFacets(),
     ]);
   const canEdit = canWriteUnit(user, unit, aliases);
 
@@ -119,6 +123,11 @@ export default async function UnitPage({
       clientEmails: unit.client_emails,
       pmName: unit.assigned_pm,
       clientLine: view.clientName,
+      // "Mr. Gasser" for the greeting, where the page prints the full name.
+      greetingLine: greetingLine(unit.client_name, {
+        titles: (unit.client_titles as Record<string, string> | null) ?? {},
+        shown: unit.client_shown,
+      }),
       unitName: unit.display_name,
       editionDate: edition ? fromIsoDate(edition.footer_date)! : new Date(),
     },
@@ -227,6 +236,17 @@ export default async function UnitPage({
             />
           </div>
 
+          <div className="space-y-2">
+            <h2 className="text-sm font-semibold">Patch and pausing</h2>
+            <UnitShortcuts
+              unitId={unit.id}
+              patch={unit.patch}
+              knownPatches={facets.patches}
+              pausedUntil={unit.paused_until}
+              canEdit={canEdit}
+            />
+          </div>
+
           <QuotationTickList quotations={quotations} canEdit={canEdit} />
 
           {canEdit && (
@@ -322,6 +342,7 @@ export default async function UnitPage({
               sentThisCycle={sentThisCycle}
               history={sendHistoryFrom(sentDates)}
               imageWidthPx={mailSettings.imageWidthPx}
+              signature={mailSettings.signature}
               canEdit={canEdit}
             />
           </div>

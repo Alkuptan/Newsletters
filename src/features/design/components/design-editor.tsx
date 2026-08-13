@@ -11,7 +11,7 @@
  * Numbers in fields, not dragging — see docs/SPEC.md for why.
  */
 
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { ChevronDown, ChevronRight, RotateCcw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -317,6 +317,13 @@ export function DesignEditor({
     });
   }
 
+  /*
+    A ref, so the autosave effect does not list `save` as a dependency — it is
+    recreated every render, which would restart the timer on every keystroke and
+    mean it never fired.
+  */
+  const saveRef = useRef<(next: ThemeOverrides | null) => void>(() => {});
+
   function save(next: ThemeOverrides | null) {
     startTransition(async () => {
       const result = await onSave(next);
@@ -330,6 +337,31 @@ export function DesignEditor({
       toast.success(next === null ? `${scopeLabel} back to the original.` : `${scopeLabel} saved.`);
     });
   }
+
+  /*
+    Autosave, because the owner asked not to press Save — and because the Save
+    button was the actual cause of "my design changes are ignored": the editor's
+    preview followed every keystroke while the newsletter and all three exports
+    read the SAVED design.
+
+    Debounced by 900ms so dragging a number from 12 to 20 writes once, not nine
+    times. `pending` is checked so a slow save is never overlapped by the next
+    one, and `unsaved` compares resolved designs, so typing a value away and back
+    settles without a write.
+  */
+  useEffect(() => {
+    if (!canEdit || !unsaved || pending) return;
+    const timer = setTimeout(() => saveRef.current(overrides), 900);
+    return () => clearTimeout(timer);
+  }, [canEdit, unsaved, pending, overrides]);
+
+  /*
+    Kept current in an effect, not during render: React forbids writing to a ref
+    while rendering, and the compiler's lint rule catches it.
+  */
+  useEffect(() => {
+    saveRef.current = save;
+  });
 
   const isOpen = (title: string) => searching || !collapsed.has(title);
 
@@ -684,13 +716,11 @@ export function DesignEditor({
 
         {canEdit && (
           <div className="flex flex-wrap items-center gap-2 border-t pt-4">
-            <Button onClick={() => save(overrides)} disabled={pending}>
-              {pending ? "Saving…" : `Save ${scopeLabel.toLowerCase()}`}
-            </Button>
             <Button variant="outline" onClick={() => save(null)} disabled={pending || !changed}>
               Reset everything to the original
             </Button>
             <span className="text-muted-foreground text-xs">
+              {unsaved || pending ? "Saving…" : "Saved automatically."}{" "}
               {changed ? "Changed from the original." : "Matching the original design."}
             </span>
           </div>

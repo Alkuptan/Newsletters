@@ -213,6 +213,48 @@ export function clientLineFor(clients: readonly UnitClient[]): string | null {
   return shown.map((c) => c.label).join(" & ");
 }
 
+/**
+ * A first name, for a greeting.
+ *
+ * "Gasser El Sayed Ibrahim" → "Gasser". Egyptian names are commonly
+ * given-name-first with the father's and grandfather's names after, so the first
+ * word is the one a person is addressed by — which is what makes this safe here
+ * and would not be in every country.
+ *
+ * A name written surname-first with a comma is the exception, and the comma says
+ * so: "Ibrahim, Gasser" is addressed as Gasser.
+ */
+export function firstNameOf(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) return trimmed;
+
+  const comma = trimmed.indexOf(",");
+  if (comma > 0) {
+    const after = trimmed.slice(comma + 1).trim();
+    if (after) return after.split(/\s+/)[0];
+  }
+  return trimmed.split(/\s+/)[0];
+}
+
+/**
+ * The greeting line: each named client's title and first name.
+ *
+ * "Mr. Gasser", or "Mr. Gasser & Mrs. Mona" when two people are named.
+ */
+export function greetingLineFor(clients: readonly UnitClient[]): string | null {
+  const shown = clients.filter((c) => c.shown);
+  if (shown.length === 0) return null;
+  return shown.map((c) => clientLabel(firstNameOf(c.name), c.title)).join(" & ");
+}
+
+/** Convenience for the render path, which holds the raw cell and the prefs. */
+export function greetingLine(
+  rawNames: string | null | undefined,
+  preferences: ClientPreferences,
+): string | null {
+  return greetingLineFor(resolveClients(rawNames, preferences));
+}
+
 /** Convenience for the render path, which holds the raw cell and the prefs. */
 export function clientLine(
   rawNames: string | null | undefined,

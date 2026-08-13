@@ -1055,3 +1055,82 @@ capping rather than fixing the width so a narrow reading pane shrinks it instead
 scrolling sideways.
 
 `pnpm verify` green with **312 tests**; `pnpm e2e` green with **19**.
+
+## Batch eleven — the archive of timelines, imported once
+
+The owner had built timelines for years in Office Timeline: one PowerPoint, 375
+slides, one unit per slide, and — they thought — nothing linking them to the tool
+but the unit name.
+
+Two things turned out better than expected. The dates are **exact**: Office
+Timeline stores `OTLSTARTDATE`/`OTLENDDATE` on every bar as PowerPoint tags, so
+nothing is measured off a picture. And the link was not missing — the **scope
+bands** down the left of each slide ("Swimming Pool", "Unit Extension") are what
+this tool calls a quotation's row label.
+
+`scripts/read-timeline-slides.mjs` reads and reports; `scripts/import-timelines.mjs`
+writes, and is dry until `--apply`. Both are one-offs kept for the record.
+
+**What the archive held:** 374 timelines, 4,053 bars. 108 slides for a unit this
+tool has with every bar verified; 66 for Before Delivery, which is not built; 200
+naming a unit absent from the sheet in any form — checked for exact, prefix and
+substring matches before concluding it.
+
+**Imported, on the owner's conservative rules:** 62 timelines, 529 bars, 52 units.
+Only slides where every band matched exactly one quotation by name; units with more
+than one slide skipped; quotations already holding a timeline left alone. Of the 67
+timelines now live, 65 are on ticked quotations and appear immediately.
+
+Two mistakes in the writing, both worth keeping written down:
+
+- The unit code was first **guessed** by shape — two-to-four letters and a number
+  — which confidently identified "Mobilization", "MEP", "SOG" and "Skeleton" as
+  units. Matching against the sheet's real codes cannot invent a unit.
+- Bars were first paired to names **by position**, which broke on any slide with
+  an extra label (a milestone, or a note reading "Modification works Quotation #
+  16880"): one extra shape shifted every pairing below it, producing a whole
+  timeline on its neighbour's dates and looking entirely plausible. Each bar now
+  finds its own printed date range by text.
+
+An estimate given to the owner mid-way — "80 slides import automatically" — was
+based on loose substring matching and became 52 under the strict rule. Corrected
+before importing, not after.
+
+`pnpm verify` green with **326 tests**.
+
+## Batch twelve — five changes from real use
+
+**The greeting is now the title and first name.** "Dear Mr. Gasser," rather than
+"Dear Mr. Gasser El Sayed Ibrahim,". A new `{firstname}` placeholder beside
+`{client}`, and 0017 rewrites the greeting line in the stored wording — only that
+line, leaving everything else the owner has written alone. Two named clients read
+"Dear Mr. Gasser & Mrs. Mona,". A surname-first spelling is handled by the comma:
+"Ibrahim, Gasser" is addressed as Gasser.
+
+**The sign-off travels with the message.** Outlook signs a message it composes, not
+one it opens from a file, so a prepared draft arrived unsigned. `signature_html`
+holds it and it is appended to the body — escaped, not trusted as HTML, because one
+unclosed tag pasted from Word would break the whole message and only the client
+would see it. Noted in the macro's README that the macro path gets Outlook's own
+reply signature, so filling in both would produce two.
+
+**The design editor saves itself.** No Save button: a debounced write 900ms after
+the last change, with "Saving…" then "Saved automatically". This also removes the
+cause of "my design changes are ignored" — the editor's preview followed every
+keystroke while the newsletter and all three exports read the SAVED design. The
+debounce means dragging 12 → 20 writes once, and the write is skipped entirely when
+typing a value back leaves the resolved design unchanged.
+
+**A unit can be paused, with an end date.** `paused_until`, never a boolean: "not
+this week" is the real intention, and a pause with no end is how a unit gets
+forgotten. It expires by itself and the unit returns to "still to send" with nobody
+having to remember. Buttons for next week and two weeks, or a date.
+
+**Patch is editable on the unit page**, not only in the list — saved when the field
+loses focus rather than per keystroke, so typing "Patch 2" does not create "P",
+"Pa" and "Pat".
+
+`pnpm verify` green with **332 tests**; `pnpm e2e` green with **19**. All five
+checked against the dev stack, including that a design change survives a reload with
+no Save pressed, and that the signature and the new greeting both reach the built
+message file.

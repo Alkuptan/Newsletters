@@ -46,6 +46,7 @@ export async function saveMailSettings(input: unknown): Promise<Result<null>> {
         body_template: parsed.data.bodyTemplate,
         always_cc: parsed.data.alwaysCc,
         image_width_px: parsed.data.imageWidthPx,
+        signature_html: parsed.data.signature.trim() || null,
         updated_by: user.id,
       })
       .eq("id", true);

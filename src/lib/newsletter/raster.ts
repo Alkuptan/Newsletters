@@ -153,6 +153,7 @@ export async function exportNewsletterEml(
     subject: string;
     body: string;
     imageWidthPx?: number;
+    signature?: string;
   },
 ): Promise<void> {
   const [{ buildEml, emlFileName }, dataUrl, { jsPDF }] = await Promise.all([
@@ -192,6 +193,7 @@ export async function exportNewsletterEml(
     },
     attachments: [{ filename: `${base}.pdf`, mimeType: "application/pdf", base64: pdfBase64 }],
     imageWidthPx: message.imageWidthPx,
+    signature: message.signature,
   });
 
   const url = URL.createObjectURL(new Blob([eml], { type: "message/rfc822" }));

@@ -10,6 +10,8 @@ import { describe, expect, it } from "vitest";
 import {
   clientLine,
   clientLineFor,
+  firstNameOf,
+  greetingLine,
   parseClientEmails,
   parseClientNames,
   resolveClients,
@@ -193,6 +195,40 @@ describe("deciding who appears on the page", () => {
       shown: ["Youssef Hakim", "Mona Ibrahim"],
     });
     expect(line).toBe("Mona Ibrahim & Youssef Hakim");
+  });
+});
+
+describe("the greeting: title and first name", () => {
+  it("addresses one client by their first name", () => {
+    expect(greetingLine("Mr. Gasser El Sayed Ibrahim", undecided)).toBe("Mr. Gasser");
+  });
+
+  it("addresses two named clients", () => {
+    expect(greetingLine("Mr. Gasser Ibrahim; Mrs. Mona Fouad", undecided)).toBe(
+      "Mr. Gasser & Mrs. Mona",
+    );
+  });
+
+  it("takes the given name from a surname-first spelling", () => {
+    // The comma is what says which way round it is.
+    expect(firstNameOf("Ibrahim, Gasser El Sayed")).toBe("Gasser");
+  });
+
+  it("leaves a single-word name alone", () => {
+    expect(firstNameOf("Medhat")).toBe("Medhat");
+  });
+
+  it("follows the same tick boxes as the printed line", () => {
+    const line = greetingLine("Mona Ibrahim; Youssef Hakim", {
+      titles: { "Mona Ibrahim": "Mrs." },
+      shown: ["Mona Ibrahim"],
+    });
+    expect(line).toBe("Mrs. Mona");
+  });
+
+  it("has nothing to say when no client is named", () => {
+    expect(greetingLine("Mona Ibrahim", { titles: {}, shown: [] })).toBeNull();
+    expect(greetingLine(null, undecided)).toBeNull();
   });
 });
 

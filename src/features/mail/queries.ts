@@ -16,6 +16,13 @@ export interface MailSettings {
   alwaysCc: string[];
   /** Caps the newsletter picture's width in the email body, in pixels. */
   imageWidthPx: number;
+  /**
+   * Appended to the prepared message.
+   *
+   * Outlook signs a message it composes, not one it opens from a file, so a
+   * prepared draft arrives unsigned unless the signature travels with it.
+   */
+  signature: string;
 }
 
 export interface PmRoutingRule {
@@ -34,7 +41,7 @@ export async function getMailSettings(): Promise<MailSettings> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("mail_settings")
-    .select("subject_template, body_template, always_cc, image_width_px")
+    .select("subject_template, body_template, always_cc, image_width_px, signature_html")
     .maybeSingle();
   if (error) throw error;
 
@@ -45,6 +52,7 @@ export async function getMailSettings(): Promise<MailSettings> {
       "Dear {client},\n\nKindly find attached the latest newsletter as of {date}.",
     alwaysCc: data?.always_cc ?? [],
     imageWidthPx: data?.image_width_px ?? DEFAULT_IMAGE_WIDTH_PX,
+    signature: data?.signature_html ?? "",
   };
 }
 

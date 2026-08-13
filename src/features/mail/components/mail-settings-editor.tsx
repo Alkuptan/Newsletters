@@ -26,6 +26,7 @@ import type { MailSettings, PmRoutingRule } from "../queries";
 /** An example unit, so the preview shows a sentence rather than placeholders. */
 const EXAMPLE = {
   clientLine: "Mr. Gasser El Sayed Ibrahim",
+  greetingLine: "Mr. Gasser",
   unitName: "Ancient Hill 56",
   editionDate: new Date(2026, 5, 14),
   pmName: "Nouran Amer",
@@ -47,6 +48,7 @@ export function MailSettingsEditor({
   const [body, setBody] = useState(settings.bodyTemplate);
   const [alwaysCc, setAlwaysCc] = useState(settings.alwaysCc.join("\n"));
   const [imageWidth, setImageWidth] = useState(String(settings.imageWidthPx));
+  const [signature, setSignature] = useState(settings.signature);
   const [problem, setProblem] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -70,6 +72,7 @@ export function MailSettingsEditor({
       bodyTemplate: body,
       alwaysCc: splitAddresses(alwaysCc),
       imageWidthPx: Number(imageWidth),
+      signature,
     };
     const check = saveMailSettingsSchema.safeParse(payload);
     if (!check.success) {
@@ -221,6 +224,26 @@ export function MailSettingsEditor({
             500 is about half a normal reading pane. It is a maximum, so a narrow window shrinks it
             further rather than cutting it off. Only affects the picture in the email — the attached
             PDF and the JPG are always full size.
+          </p>
+        </div>
+
+        <div className="space-y-1">
+          <Label htmlFor="mail-signature" className="text-xs">
+            Your sign-off
+          </Label>
+          <Textarea
+            id="mail-signature"
+            value={signature}
+            rows={5}
+            placeholder={"Best regards,\nYour name\nYour job title\nEl Gouna"}
+            disabled={!canEdit || pending}
+            onChange={(event) => setSignature(event.target.value)}
+            className="text-sm"
+          />
+          <p className="text-muted-foreground text-xs">
+            Outlook signs a message it writes itself, but not one it opens from a file — so a
+            prepared draft arrives without your signature unless it is here. Plain text, with your
+            line breaks kept. Leave it empty and add the signature in Outlook instead.
           </p>
         </div>
 

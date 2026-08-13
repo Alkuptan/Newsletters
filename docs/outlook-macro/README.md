@@ -96,6 +96,20 @@ Two known things to watch:
   Items for the previous newsletter. If a unit has not been sent in a very long
   time it may not be found, and you get a new message rather than a reply.
 
+## Two signatures, if you are not careful
+
+The tool can hold your sign-off (Email screen → **Your sign-off**), because Outlook
+does not add a signature to a message it merely OPENS from a file.
+
+The macro is different: it replies to a real message, and Outlook adds your reply
+signature to that itself. So with both filled in you would get two.
+
+Pick one:
+
+- **using the macro** — leave the tool's sign-off empty and let Outlook sign it;
+- **opening the file directly**, no macro — fill the tool's sign-off in, since
+  nothing else will.
+
 ## A note on security
 
 Your macro setting is **Enable all macros**, which is what lets this run. It also
