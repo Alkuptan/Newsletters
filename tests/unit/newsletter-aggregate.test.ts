@@ -380,3 +380,124 @@ describe("suggested unit display names", () => {
     expect(tidyZone("cyan the range")).toBe("Cyan the Range");
   });
 });
+
+/**
+ * The owner's own progress figure.
+ *
+ * The sheet's money-weighted figure is the default and is often not what the
+ * owner would tell the client. Overriding it is safe only if two things hold:
+ * the sheet's figure stays visible, and nothing else on the card contradicts
+ * the figure being shown. Both are asserted here.
+ */
+describe("choosing the progress figure", () => {
+  // 40% of 100,000 and 0% of 100,000 → the sheet says 20%.
+  const half = [
+    quotation({ quoteNumber: "1", invoiceValue: 100_000, progress: 0.4 }),
+    quotation({ quoteNumber: "2", invoiceValue: 100_000, progress: 0 }),
+  ];
+
+  it("uses the sheet when nothing is overridden", () => {
+    const figures = aggregateQuotations(half, d("2026-08-07"));
+    expect(figures.progressPercent).toBe(20);
+    expect(figures.sheetProgressPercent).toBe(20);
+    expect(figures.progressIsOverridden).toBe(false);
+  });
+
+  it("shows the owner's figure instead when one is set", () => {
+    const figures = aggregateQuotations(half, d("2026-08-07"), { pocOverridePercent: 65 });
+    expect(figures.progressPercent).toBe(65);
+    expect(figures.progressIsOverridden).toBe(true);
+  });
+
+  it("still reports what the sheet said, so the drift can be seen", () => {
+    // Without this the editor cannot tell a deliberate override from one typed
+    // months ago while the sheet moved on underneath it.
+    const figures = aggregateQuotations(half, d("2026-08-07"), { pocOverridePercent: 65 });
+    expect(figures.sheetProgressPercent).toBe(20);
+  });
+
+  it("keeps zero as a real answer rather than treating it as absent", () => {
+    // 0 is falsy, so a truthiness check here would silently fall back to the
+    // sheet and print 20% for a unit the owner said had not started.
+    const figures = aggregateQuotations(half, d("2026-08-07"), { pocOverridePercent: 0 });
+    expect(figures.progressPercent).toBe(0);
+    expect(figures.progressIsOverridden).toBe(true);
+  });
+
+  it("treats null and undefined as following the sheet", () => {
+    expect(
+      aggregateQuotations(half, d("2026-08-07"), { pocOverridePercent: null }).progressPercent,
+    ).toBe(20);
+    expect(
+      aggregateQuotations(half, d("2026-08-07"), { pocOverridePercent: undefined }).progressPercent,
+    ).toBe(20);
+  });
+
+  describe("the Status pill follows the figure on the card", () => {
+    /*
+      The whole point. The ring and the pill are inches apart on the printed
+      page, so a verdict computed from the sheet while the ring shows the
+      owner's figure would put a number and a contradiction of it side by side.
+    */
+    const dated = [
+      quotation({
+        invoiceValue: 100_000,
+        progress: 0.1,
+        plannedStartDate: d("2026-01-01"),
+        maxContractualDate: d("2026-03-01"),
+      }),
+    ];
+
+    it("reads BEHIND on the sheet's low figure", () => {
+      // Halfway through the duration at 10% done.
+      expect(aggregateQuotations(dated, d("2026-01-30")).verdict).toBe("BEHIND");
+    });
+
+    it("reads AHEAD once the owner says the work is nearly done", () => {
+      expect(aggregateQuotations(dated, d("2026-01-30"), { pocOverridePercent: 95 }).verdict).toBe(
+        "AHEAD",
+      );
+    });
+  });
+
+  it("does not let a typed 100 close a unit that is not finished", () => {
+    /*
+      Completion is a fact about the work, not a presentation choice: it decides
+      whether a unit needs photos, counts as Complete on the dashboard, and
+      prints COMPLETED in place of a verdict. An owner who wants that ticks the
+      quotations.
+    */
+    const figures = aggregateQuotations(half, d("2026-08-07"), { pocOverridePercent: 100 });
+    expect(figures.progressPercent).toBe(100);
+    expect(figures.isComplete).toBe(false);
+    expect(figures.verdict).not.toBe("COMPLETED");
+  });
+
+  it("still prints COMPLETED when the quotations say so, whatever was typed", () => {
+    const done = [quotation({ invoiceValue: 100_000, progress: 1, projectStatus: "Completed" })];
+    const figures = aggregateQuotations(done, d("2026-08-07"), { pocOverridePercent: 30 });
+    expect(figures.verdict).toBe("COMPLETED");
+    expect(figures.isComplete).toBe(true);
+  });
+
+  describe("refuses a figure that would draw a broken ring", () => {
+    // The column is CHECK-constrained and the action validates, but this
+    // function is also reached from tests, scripts and the importer.
+    it.each([
+      [150, 100],
+      [-20, 0],
+      [101, 100],
+    ])("clamps %i to %i", (given, expected) => {
+      expect(
+        aggregateQuotations(half, d("2026-08-07"), { pocOverridePercent: given }).progressPercent,
+      ).toBe(expected);
+    });
+
+    it("ignores a value that is not a number at all", () => {
+      expect(
+        aggregateQuotations(half, d("2026-08-07"), { pocOverridePercent: Number.NaN })
+          .progressPercent,
+      ).toBe(20);
+    });
+  });
+});

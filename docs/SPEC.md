@@ -180,11 +180,34 @@ Agreed rules, verified against all three sample newsletters:
 | Start Date           | **earliest** `Planned Start Date` across ticked quotes                                                                                       |
 | Finish Date          | **latest** `Max Contractual` across ticked quotes                                                                                            |
 | Duration             | calendar days from Start Date to Finish Date                                                                                                 |
-| Actual Progress %    | money-weighted: Σ(progress × invoice value) ÷ Σ(invoice value)                                                                               |
+| Actual Progress %    | money-weighted: Σ(progress × invoice value) ÷ Σ(invoice value). **Overridable per unit** — see below                                         |
 | Elapsed Time         | calendar days from Start Date to the edition's footer date, never below 0, never above Duration                                              |
 | Status               | expected % = Elapsed ÷ Duration. Progress more than **5 points** above → **AHEAD**; more than 5 below → **BEHIND**; otherwise → **ON TRACK** |
 | Area of Concern      | the ticked quotes' `Notes`, split into bullets on commas; editable before export                                                             |
 | Stage lit up         | `Not Started`/`Grace` → Quotation · `In Progress`/`Hold` → Construction · `Completed` → Hand Over. Overridable per unit                      |
+
+### Overriding Actual Progress % (added 17 September 2026)
+
+The money-weighted figure is the default. Per unit, the owner may write their
+own percentage and choose which of the two the newsletter prints. Both are
+always shown on the unit page, and when they differ by 5 points or more the
+divergence is stated on screen — an override typed months ago while the sheet
+moved on is otherwise invisible.
+
+Two consequences, decided deliberately:
+
+- **Status follows whichever figure is printed.** The ring and the pill sit
+  inches apart on the card, so a verdict computed from the sheet while the ring
+  showed the owner's figure would contradict itself in print.
+- **Completion does not.** A unit is Completed only when its ticked quotations
+  say so. That flag decides whether photos are needed, the dashboard's Complete
+  count, and whether COMPLETED prints in place of a verdict — it is a fact
+  about the work, not a presentation choice, and typing 100 does not close a
+  unit.
+
+The chosen figure is used everywhere progress appears — the newsletter, the unit
+list, the dashboard and What changed — so no screen disagrees with the page it
+links to.
 
 Worked check against the samples:
 

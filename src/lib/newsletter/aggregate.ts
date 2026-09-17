@@ -16,6 +16,18 @@ import {
   type ScheduleVerdict,
 } from "./types";
 
+export interface AggregateOptions {
+  /**
+   * The owner's own progress figure for this unit, 0–100, or null/undefined to
+   * use the sheet's money-weighted one.
+   *
+   * Optional so every call site keeps working unchanged, but all four of them
+   * pass it — a unit list that disagrees with the newsletter it links to would
+   * be worse than not having the override at all.
+   */
+  pocOverridePercent?: number | null;
+}
+
 /** Empty figures, for a unit whose quotations are all unticked. */
 const NOTHING_TICKED: NewsletterFigures = {
   quoteReferences: "",
@@ -26,6 +38,8 @@ const NOTHING_TICKED: NewsletterFigures = {
   finishDate: null,
   durationDays: null,
   progressPercent: 0,
+  sheetProgressPercent: 0,
+  progressIsOverridden: false,
   elapsedDays: 0,
   elapsedPercent: 0,
   overrunDays: 0,
@@ -127,6 +141,7 @@ export function verdictFor(progressPercent: number, expectedPercent: number): Sc
 export function aggregateQuotations(
   quotations: readonly QuotationFigures[],
   editionDate: Date,
+  options: AggregateOptions = {},
 ): NewsletterFigures {
   if (quotations.length === 0) return NOTHING_TICKED;
 
@@ -139,8 +154,22 @@ export function aggregateQuotations(
   const durationDays =
     startDate && finishDate ? Math.max(0, diffCalendarDays(startDate, finishDate)) : null;
 
-  const progressFraction = weightedProgress(quotations);
-  const progressPercentExact = progressFraction * 100;
+  /*
+    The sheet's figure, always computed — the editor shows it beside the owner's
+    so a value that has drifted from the sheet is noticed rather than quietly
+    kept, which is the whole reason the override is visible instead of silent.
+  */
+  const sheetPercentExact = weightedProgress(quotations) * 100;
+
+  const override = options.pocOverridePercent;
+  const hasOverride = typeof override === "number" && Number.isFinite(override);
+
+  // Clamped rather than trusted. The column is CHECK-constrained and the action
+  // validates, but this function is also called from tests, scripts and the
+  // importer, and a figure over 100 would draw a progress ring past full.
+  const progressPercentExact = hasOverride
+    ? Math.min(100, Math.max(0, override))
+    : sheetPercentExact;
 
   // Elapsed never runs negative (a unit that has not started shows "00") and
   // never overruns the duration (an overdue unit shows a full ring, not 130%).
@@ -177,6 +206,8 @@ export function aggregateQuotations(
     finishDate,
     durationDays,
     progressPercent: Math.round(progressPercentExact),
+    sheetProgressPercent: Math.round(sheetPercentExact),
+    progressIsOverridden: hasOverride,
     elapsedDays,
     elapsedPercent: Math.round(elapsedPercentExact),
     overrunDays,

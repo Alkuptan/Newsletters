@@ -633,16 +633,27 @@ function addGantt(
     );
 
     for (const activity of row.activities) {
+      /*
+        Centred on the bar, in a box exactly one slot tall — the same box and the
+        same rule as the preview (`gantt.tsx`), so the slide cannot drift from
+        what the owner approved. Both used fixed nudges and fixed 20/22pt-tall
+        boxes before, which disagreed with each other by a pixel and, on a long
+        schedule, were taller than the slot they sat in.
+      */
       text(
         slide,
         activity.rangeLabel,
         {
           x: right.x + activity.labelX,
-          y: panelY + activity.barY - 4,
+          y: panelY + activity.textY,
           w: activity.labelWidth,
-          h: 20,
+          h: activity.textHeight,
         },
-        { size: theme.text.ganttBarLabel * chart.textScale, align: "right", valign: "top" },
+        {
+          size: theme.text.ganttBarLabel * chart.textScale,
+          align: activity.labelAfterBar ? "left" : "right",
+          valign: "middle",
+        },
       );
       slide.addShape(pptx.ShapeType.rect, {
         x: inches(right.x + activity.barX),
@@ -661,11 +672,11 @@ function addGantt(
         activity.name,
         {
           x: right.x + activity.nameX,
-          y: panelY + activity.barY - 3,
+          y: panelY + activity.textY,
           w: activity.nameWidth,
-          h: 22,
+          h: activity.textHeight,
         },
-        { size: theme.text.ganttBarName * chart.textScale, valign: "top" },
+        { size: theme.text.ganttBarName * chart.textScale, valign: "middle" },
       );
     }
   }
@@ -773,10 +784,15 @@ async function addNewsletterSlide(
   addLeftColumn(slide, pptx, view, theme, left);
 
   const chart = hasTimeSchedule(view.ganttRows)
-    ? layoutGantt(view.ganttRows, right.width, theme.boxes.timelinePanel, {
-        start: view.startDate,
-        finish: view.finishDate,
-      })
+    ? layoutGantt(
+        view.ganttRows,
+        right.width,
+        theme.boxes.timelinePanel,
+        { start: view.startDate, finish: view.finishDate },
+        // Must match the preview's call exactly, or the slide fits its bars to
+        // different numbers than the screen did.
+        { label: theme.text.ganttBarLabel, name: theme.text.ganttBarName },
+      )
     : null;
 
   if (chart) {

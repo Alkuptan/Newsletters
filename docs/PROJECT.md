@@ -122,6 +122,33 @@ is in `docs/WINDOWS-VS-LINUX-BUILD.md`.
 
 **Everything else in the go-live is done and working** — see docs/PROGRESS.md.
 
+### `pnpm run deploy` on Windows ships a broken site — use `pnpm run upload`
+
+Knowing that the bundle must be built on Linux was not enough to prevent shipping
+a Windows one, because **`deploy` rebuilds before uploading**. Its chain is
+`build:cf && … && opennextjs-cloudflare deploy`, so running it on Windows quietly
+replaced a good Linux build with a broken Windows one and uploaded that. On
+5 September this took the live site down: `/login` returned 500 until the Linux
+build was uploaded again.
+
+The only visible hint at the time was the gzipped size — **~2,670 KiB from Linux,
+~3,080 KiB from Windows** — and the secrets guard reporting 10,642 files scanned
+instead of 2,382. Both are meaningless unless you already know the numbers.
+
+So the artefact is now checked rather than the intention:
+
+- **`pnpm run upload`** — uploads what is already in `.open-next`, refusing if it
+  was not built on Linux. This is the command to use after the container build.
+- **`pnpm run deploy`** still builds first, and now fails at the guard on Windows
+  instead of shipping. It remains correct on Linux and in CI.
+
+`scripts/check-linux-build.mjs` looks for `.next\server\…-manifest.json` baked
+into `handler.mjs`, which is Next writing its own `path.sep` into the output. Its
+first version used a regular expression and a shell heredoc turned `\\+` into
+`\+` on the way to disk, so it matched a literal plus sign and passed everything
+— a guard that guarded nothing. It now uses `String.raw` and plain substring
+searches, and was tested against a real Windows build before being trusted.
+
 ### The GitHub repository is public, and the local history is NOT publishable
 
 `Alkuptan/Newsletters` is public. The local `master` history is not: while the
@@ -172,6 +199,110 @@ photos.
 are set yet**, so the documented "Actions → deploy → Run workflow" route cannot
 run; today's deploys are built in a Linux Docker container on the owner's machine
 and uploaded from there. `ci.yml` needs no secrets and is green.
+
+### Writing `.env.local` from PowerShell corrupts it two different ways
+
+Both hit while bootstrapping the second laptop, and both look like "Supabase is
+not configured" rather than like a file-writing problem.
+
+1. **`Out-File -Encoding utf8` writes a BOM.** Windows PowerShell 5.1's `utf8`
+   means utf8-WITH-BOM, and the Supabase CLI refuses the file with
+   `failed to parse environment file: .env.local (unexpected character '»' in
+variable name)`. Use
+   `[System.IO.File]::WriteAllText($path, $text, (New-Object System.Text.UTF8Encoding($false)))`,
+   or write it from bash.
+2. **A regex that silently captures nothing writes empty values.** Parsing
+   `supabase status -o env` in PowerShell and getting the capture group wrong
+   produces `NEXT_PUBLIC_SUPABASE_URL=` with nothing after it. The file still
+   parses, `pnpm db:reset` still works — and only `pnpm dev` fails, at runtime,
+   with "Your project's URL and Key are required to create a Supabase client!"
+
+**Verify by length, never by comparison against the old file.** Checking the new
+value against the old one with a `-match` is worthless: an empty pattern matches
+any string, so an empty value reports as "unchanged". Print the character counts
+instead — the URL is 22, the publishable key 46, the secret key 41 — and refuse
+to write the file if any of them is zero.
+
+### Classic Outlook's offline file — why the newsletters never threaded
+
+The reply-chain macro (`docs/outlook-macro/`) was blamed for months of
+newsletters opening as new emails. It was not the macro. Diagnosed on the
+owner's PC on 10 September 2026, by driving Outlook read-only over COM from
+PowerShell — which is worth knowing about on its own, because it tests the
+macro's exact logic without installing the macro.
+
+**What was actually wrong, in order of how much it mattered:**
+
+1. **The offline file had stopped syncing, at two different dates.** Sent Items
+   held 1,934 items and nothing after **28 March 2026**; the Inbox stopped at
+   **1 August 2026**. The file was **38.24 GB**, and Outlook had recorded that
+   exact path in `HKCU\Software\Microsoft\Office\16.0\Outlook\PST` under
+   **`LastCorruptStore`** — Outlook's own note that it considers the store
+   damaged. Two folders frozen at two different dates is the signature of a
+   damaged store rather than a view filter or a rule, which is what the obvious
+   diagnostics chase first.
+
+   This is fatal to the macro specifically, because the macro finds last cycle's
+   newsletter by searching **Sent Items**. Nothing since March is in there to
+   find, so every recent unit opens as a new message no matter how correct the
+   macro is. Reading a message's `PR_INTERNET_MESSAGE_ID` **hangs indefinitely**
+   on a store in this state: the subject and sent date come from the folder
+   index and return instantly, but anything needing the message's own headers
+   goes to the server and never comes back.
+
+2. **The macro was never installed.** No `VbaProject.OTM` existed anywhere in
+   `%APPDATA%\Microsoft\Outlook\`.
+
+3. **The macro has no double-click hook, and never did.** It is a plain
+   `Public Sub` for a ribbon button — there is no `Application_ItemLoad` and no
+   `NewInspector` handler in it. So _double-clicking the downloaded `.eml` can
+   never produce a reply_, by design: the file opens as an ordinary draft. The
+   documented workflow is download the file, then click the **button**. Anyone
+   reasoning from "I double-click it and the macro runs" will misdiagnose this
+   completely, and a handover document written from that assumption did.
+
+**What was verified as working**, so it never needs re-testing: enumerating
+every store, `GetDefaultFolder(olFolderSentMail)` skipping the Public Folders
+store cleanly, and the DASL filter
+`@SQL="urn:schemas:httpmail:subject" like '%…%'` — which returned **1,328**
+newsletters. The historical subjects are already `<Unit> Newsletter`, matching
+the tool's `{unit} Newsletter` default exactly, so the subject convention is
+sound. The macro's search logic is correct; it was searching an empty cupboard.
+
+**The disk-space trap in rebuilding the file.** The standard fix is to rename
+`Outlook.ost` and let Outlook re-download it. Renaming keeps the old 38.24 GB on
+disk while a new one downloads, and there were **52.4 GB free** — so a full
+re-download would have left about 14 GB, with no margin. **Reduce
+Account Settings → "Mail to keep offline" to a year or less FIRST**, then
+rebuild. Doing it in the documented order fills the disk.
+
+**Order of preference for a fix**, given the owner has already moved to new
+Outlook (which cannot run macros at all — no VBA engine, no COM add-in host,
+and Microsoft's guidance names Power Automate, Graph and Office.js as the
+replacements):
+
+- The macro is the only route that needs nothing from IT, but it needs a healthy
+  offline file and classic Outlook, and classic's support ends in 2029.
+- **Delegated Microsoft Graph, draft-only, is the better target.** It needs no
+  app registration: the Graph PowerShell SDK signs in through a first-party app
+  that already exists in every tenant, so the **401 recorded below for
+  _creating_ an app registration does not close this route** — it is a different
+  mechanism and must be tested separately, with
+  `Connect-MgGraph -Scopes "Mail.ReadWrite"`. Ask for `Mail.ReadWrite` and not
+  `Mail.Send`, so the script is structurally incapable of sending.
+- **The end state worth building** is neither: have the tool store each unit's
+  previous `Message-ID` and write real `In-Reply-To`/`References` into the
+  `.eml`. Then threading needs no macro, no classic Outlook and no send-time
+  script — the owner double-clicks the file exactly as they do now, from any
+  machine. It needs only **read** access to fetch the ids, which is a smaller
+  ask than anything above.
+
+  **This is what was built, on 13 September 2026** — see "Sending the newsletter
+  email to clients from the tool" below, and `docs/plans/005-real-thread-replies.md`.
+  It is **confirmed working, and only in classic Outlook** — the open question
+  about whether Outlook carries those headers from a file through to sending was
+  settled by three real sends, and the answer differs by which Outlook opens the
+  file. See "Which Outlook opens the file decides whether it threads" below.
 
 ## Graduation triggers
 
@@ -254,13 +385,83 @@ A compose LINK (`mailto:` or the Outlook web deeplink) is kept alongside for a
 machine with no Outlook installed, but a link can never carry a file, and saying
 otherwise was a mistake made once in this project's history.
 
-**True threading is the one thing still missing.** A real reply carries
-`In-Reply-To`/`References` pointing at the previous message's `Message-ID`, which
-only exists after Exchange has sent something, and reading it back needs Graph.
-`Thread-Topic` is set to the unit's subject so Outlook files each unit's
-newsletters under one conversation — grouping, which finds the history, not a
-reply chain. An Outlook VBA macro could close the gap by calling `ReplyAll` on the
-previous sent message, if the tenant's macro policy allows macros at all.
+**True threading — solved on 13 September 2026, and not the way this section
+expected.** A real reply carries `In-Reply-To`/`References` pointing at the
+previous message's `Message-ID`, which exists only after Exchange has sent
+something. That was written up as needing Graph, and it did; what changed is that
+Graph became available.
+
+The Microsoft 365 connector is authorised for this account with `Mail.Read`,
+`Mail.ReadWrite`, `Mail.Send`, `Files.Read.All` and `Sites.Read.All` — so the
+**401 recorded below closes only the "create your own app registration" route,
+not delegated Graph as a whole**. A pre-approved app with admin consent works.
+Several conclusions in this file were drawn too broadly from that 401 and are
+marked where they appear.
+
+What makes it cheap: **`PMOTeam@elgouna.com` is CC'd on every newsletter**, so
+that mailbox already holds a copy of each one carrying its `internetMessageId`.
+No shared-mailbox permission is needed, and it reads Microsoft's servers rather
+than the damaged local store.
+
+So the design is: the id is captured outside the tool, stored per unit
+(`units.thread_message_id`, migration 0018), and written into the `.eml` as
+`In-Reply-To`/`References`. The owner opens the file and presses Send exactly as
+before, and it lands in the thread. `scripts/import-thread-ids.mjs` does the
+matching; it refuses to guess, because `Ancient Sands 192A` and `192B` are
+different clients and a wrong anchor shows a paying customer someone else's
+conversation.
+
+#### Which Outlook opens the file decides whether it threads
+
+Proven by three real sends of the same unit on 13 September, compared by
+`conversationId` against the previous newsletter:
+
+| Opened with         | Conversation                         |
+| ------------------- | ------------------------------------ |
+| **new** Outlook     | a NEW one — threading lost           |
+| **classic** Outlook | the SAME one as August — threaded ✅ |
+
+The reason is visible in what each one sent. New Outlook rewrote the body into
+its own editor (`class="elementToProof"`, a `<div id="Signature">`) and renamed
+the attachments to `image.png` — it **rebuilt the message**, and the two reply
+headers went with the original. Classic sent the file as written:
+`WordSection1` markup, attachments still named `<Unit> Newsletter.jpg` / `.pdf`.
+
+So an earlier claim in this file — "no macro, no classic Outlook, from any
+machine" — was **wrong**, and was written before the test existed. The file route
+needs a mail program that sends the file rather than re-composing it. Classic
+Outlook does; new Outlook does not.
+
+A second thing the test settled: **opening the file adds no signature at all**.
+The sent message ended "Kind Regards," and nothing. So the tool's own sign-off
+(Email screen → Your sign-off) is not optional — without it clients get unsigned
+newsletters.
+
+#### The macro is not superseded after all — it covers the units with no anchor
+
+A unit the tool has no `thread_message_id` for cannot thread on double-click;
+there is nothing to point at. That is every unit not sent since the anchors
+started being recorded — 305 of 344 at the time of writing.
+
+`ReplyIntoSelectedThread` in `docs/outlook-macro/` closes that gap: the owner
+finds the unit's conversation, clicks any message in it, and one button puts this
+cycle's wording, picture and PDF into a reply on that thread. It is deliberately
+the _manual_ counterpart to `SendNewsletterInThread`, which searches Sent Items
+and therefore depends on the offline file being healthy — the thing that failed
+here.
+
+**Using it once fixes that unit permanently.** The reply lands in the thread with
+PMOTeam copied, so the next run of `import-thread-ids.mjs` picks it up as the
+unit's anchor and the following cycle threads on double-click. The coverage gap
+closes itself as the cycle is worked through; it does not need a bulk fix.
+
+Two traps it guards against explicitly, because both are silent:
+
+- replying into **the wrong unit's** conversation — it shows both subjects and
+  says in as many words when they do not match;
+- replying to **the unsent draft** rather than the thread, which is the likeliest
+  mistake: the draft from the double-click is the active window, so Outlook hands
+  the macro that unless it checks `MailItem.Sent`.
 
 The dev-team version is worth doing properly: delegated Graph send, a per-unit
 send log with the message id so replies thread correctly, a bounce report, and

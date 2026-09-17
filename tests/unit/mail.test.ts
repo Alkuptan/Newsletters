@@ -10,6 +10,7 @@ import {
   fillTemplate,
   prepareMail,
   recipientsFor,
+  subjectThreadingRisks,
   unknownPlaceholders,
   withoutImageMarker,
 } from "@/lib/newsletter/mail";
@@ -202,5 +203,46 @@ describe("the whole prepared message", () => {
       [],
     );
     expect(mail.unknown).toEqual(["{Unit}", "{client_name}"]);
+  });
+});
+
+/**
+ * A subject that changes between cycles quietly breaks the email thread.
+ *
+ * Outlook groups a conversation by subject, and the "send in thread" macro finds
+ * the previous newsletter by searching Sent Items for the same subject. Put the
+ * edition date in the subject and each cycle is a new conversation with nothing
+ * to reply to — which looks like a broken macro, weeks later, in a different
+ * application.
+ */
+describe("a subject that will not hold a thread", () => {
+  it("passes the stable default", () => {
+    expect(subjectThreadingRisks("{unit} Newsletter")).toEqual([]);
+  });
+
+  it("catches the edition date, which changes every single cycle", () => {
+    const risks = subjectThreadingRisks("{unit} Newsletter — {date}");
+    expect(risks.map((r) => r.token)).toEqual(["{date}"]);
+    expect(risks[0].because).toMatch(/every cycle/);
+  });
+
+  it("catches the people, who change less often but break it just as completely", () => {
+    expect(subjectThreadingRisks("{unit} for {client}").map((r) => r.token)).toEqual(["{client}"]);
+    expect(subjectThreadingRisks("{unit} — {pm}").map((r) => r.token)).toEqual(["{pm}"]);
+    expect(subjectThreadingRisks("Dear {firstname}: {unit}").map((r) => r.token)).toEqual([
+      "{firstname}",
+    ]);
+  });
+
+  it("reports every offending placeholder, not just the first", () => {
+    expect(subjectThreadingRisks("{unit} {date} {pm}").map((r) => r.token)).toEqual([
+      "{date}",
+      "{pm}",
+    ]);
+  });
+
+  it("says nothing about placeholders that are stable for a unit", () => {
+    // {newsletter} is a body marker and {unit} is the whole point of the subject.
+    expect(subjectThreadingRisks("{unit} Newsletter {newsletter}")).toEqual([]);
   });
 });

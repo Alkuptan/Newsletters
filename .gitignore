@@ -65,3 +65,10 @@ cloudflare-env.d.ts
 
 # Derived from the live sheet by pnpm check:publishable:build — holds real figures.
 /.publish-denylist.txt
+
+# A Windows quoting slip in db:types used to create this; belt and braces.
+"src/lib/supabase/database.types.ts'"
+
+# Message-IDs read out of the mailbox to anchor each unit's email thread.
+# Internal mail metadata, and this repository is public.
+/.thread-ids.json

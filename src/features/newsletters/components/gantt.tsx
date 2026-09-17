@@ -6,7 +6,7 @@
  * exporter uses, so the slide and this preview cannot drift apart.
  */
 
-import { layoutGantt } from "@/lib/newsletter/gantt-geometry";
+import { GANTT_LINE_HEIGHT, layoutGantt } from "@/lib/newsletter/gantt-geometry";
 import { LAYOUT, PALETTE } from "@/lib/newsletter/layout";
 import type { NewsletterTheme } from "@/lib/newsletter/theme";
 
@@ -149,16 +149,28 @@ export function Gantt({
               <div key={`${activity.name}-${index}`}>
                 {/* Date range, right-aligned into the space before the bar —
                     wrapping to two lines when that space is tight, as in the
-                    templates. */}
+                    templates, but only while the slot is tall enough to hold
+                    two.
+
+                    Centred on the bar with flexbox rather than nudged up from
+                    its top by a fixed amount: the box is one slot tall, so this
+                    lands the text on the bar's middle whether the label runs to
+                    one line or two, and at any bar height. */}
                 <div
                   style={{
                     position: "absolute",
                     left: activity.labelX,
-                    top: activity.barY - 3,
+                    top: activity.textY,
                     width: activity.labelWidth,
-                    textAlign: "right",
+                    height: activity.textHeight,
+                    display: "flex",
+                    alignItems: "center",
+                    // Against the bar from whichever side it sits on.
+                    justifyContent: activity.labelAfterBar ? "flex-start" : "flex-end",
+                    textAlign: activity.labelAfterBar ? "left" : "right",
                     fontSize: theme.text.ganttBarLabel * chart.textScale,
-                    lineHeight: 1.05,
+                    lineHeight: GANTT_LINE_HEIGHT,
+                    whiteSpace: activity.labelNoWrap ? "nowrap" : "normal",
                     color: PALETTE.text,
                   }}
                 >
@@ -180,14 +192,19 @@ export function Gantt({
                   }}
                 />
 
+                {/* The activity's name, centred on its bar the same way. */}
                 <div
                   style={{
                     position: "absolute",
                     left: activity.nameX,
-                    top: activity.barY - 2,
+                    top: activity.textY,
                     width: activity.nameWidth,
+                    height: activity.textHeight,
+                    display: "flex",
+                    alignItems: "center",
                     fontSize: theme.text.ganttBarName * chart.textScale,
-                    lineHeight: 1.1,
+                    lineHeight: GANTT_LINE_HEIGHT,
+                    whiteSpace: activity.labelNoWrap ? "nowrap" : "normal",
                     color: PALETTE.text,
                   }}
                 >

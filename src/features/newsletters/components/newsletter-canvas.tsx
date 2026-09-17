@@ -51,10 +51,16 @@ export function NewsletterCanvas({
   // Laid out once here so the stage track and photos know where the Gantt panel
   // ended — a short schedule pulls them up and the photos grow into the space.
   const chart = withSchedule
-    ? layoutGantt(view.ganttRows, right.width, theme.boxes.timelinePanel, {
-        start: view.startDate,
-        finish: view.finishDate,
-      })
+    ? layoutGantt(
+        view.ganttRows,
+        right.width,
+        theme.boxes.timelinePanel,
+        { start: view.startDate, finish: view.finishDate },
+        // The sizes this chart is actually drawn at, so the bars and their
+        // labels are fitted to the owner's Design settings rather than to the
+        // defaults they may have changed.
+        { label: theme.text.ganttBarLabel, name: theme.text.ganttBarName },
+      )
     : null;
   const blocks = withScheduleBlocks(
     chart?.panelHeight ?? theme.boxes.timelinePanel,

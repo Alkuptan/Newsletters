@@ -15,7 +15,7 @@
     "db:new": "node scripts/new-migration.mjs",
     "db:reset": "supabase db reset",
     "db:push": "dotenv -e .env.production.local -- supabase db push",
-    "db:types": "dotenv -e .env.production.local -- sh -c 'supabase gen types typescript --linked > src/lib/supabase/database.types.ts'",
+    "db:types": "dotenv -e .env.production.local -- supabase gen types typescript --linked > src/lib/supabase/database.types.ts",
     "db:types:local": "supabase gen types typescript --local > src/lib/supabase/database.types.ts",
     "check:bundle": "node scripts/check-bundle-secrets.mjs",
     "migration-lint": "node scripts/migration-lint.mjs",
@@ -23,12 +23,14 @@
     "invite-link": "dotenv -e .env.production.local -- tsx scripts/invite-link.ts",
     "seed-dev": "dotenv -e .env.local -- tsx scripts/seed-dev.ts",
     "build:cf": "dotenv -e .env.production.local -- sh -c 'SUPABASE_SECRET_KEY= SUPABASE_DB_PASSWORD= opennextjs-cloudflare build'",
-    "deploy": "pnpm run build:cf && node scripts/check-bundle-secrets.mjs && dotenv -e .env.production.local -- opennextjs-cloudflare deploy",
+    "deploy": "pnpm run build:cf && node scripts/check-bundle-secrets.mjs && node scripts/check-linux-build.mjs && dotenv -e .env.production.local -- opennextjs-cloudflare deploy",
     "preview": "pnpm run build:cf && dotenv -e .env.production.local -- opennextjs-cloudflare preview",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv ./cloudflare-env.d.ts",
     "prepare": "husky",
     "check:publishable": "node scripts/check-publishable.mjs",
-    "check:publishable:build": "node scripts/build-publish-denylist.mjs"
+    "check:publishable:build": "node scripts/build-publish-denylist.mjs",
+    "check:linux-build": "node scripts/check-linux-build.mjs",
+    "upload": "node scripts/check-bundle-secrets.mjs && node scripts/check-linux-build.mjs && dotenv -e .env.production.local -- opennextjs-cloudflare deploy"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

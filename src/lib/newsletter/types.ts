@@ -67,8 +67,26 @@ export interface NewsletterFigures {
   finishDate: Date | null;
   /** Calendar days from startDate to finishDate. */
   durationDays: number | null;
-  /** Money-weighted progress as a whole percentage, 0–100. */
+  /**
+   * The progress the newsletter shows, 0–100.
+   *
+   * Money-weighted from the sheet unless the owner wrote their own figure for
+   * this unit, in which case theirs. The verdict is computed from whichever of
+   * the two this is, so the ring and the Status pill can never contradict each
+   * other.
+   */
   progressPercent: number;
+  /**
+   * What the sheet's figure would have been, always computed.
+   *
+   * Equal to `progressPercent` unless overridden. Carried so the editor can
+   * show both, which is the point of the override being visible rather than
+   * silent — a figure the owner typed months ago while the sheet moved on is
+   * otherwise impossible to spot.
+   */
+  sheetProgressPercent: number;
+  /** True when `progressPercent` is the owner's figure, not the sheet's. */
+  progressIsOverridden: boolean;
   /** Calendar days from startDate to the edition date, clamped to [0, duration]. */
   elapsedDays: number;
   /**

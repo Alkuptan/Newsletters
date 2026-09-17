@@ -79,6 +79,36 @@ export function fillTemplate(template: string, facts: MailFacts): string {
   );
 }
 
+/**
+ * Placeholders that make a SUBJECT line different from one cycle to the next,
+ * and what each of them costs.
+ *
+ * Outlook decides what belongs to a conversation from the subject. Put anything
+ * in it that changes and each cycle starts its own thread — which is also why
+ * the "send in thread" macro then finds nothing to reply to and silently opens a
+ * new message instead. Perfectly reasonable in the body; quietly destructive in
+ * the subject.
+ */
+const SUBJECT_THREAD_RISKS: Record<string, string> = {
+  "{date}": "changes every cycle, so every newsletter starts a new thread",
+  "{pm}": "changes whenever the unit's project manager changes",
+  "{client}": "changes whenever the unit's client contacts change",
+  "{firstname}": "changes whenever the unit's client contacts change",
+};
+
+/**
+ * Why this subject line will not hold a thread together, if it will not.
+ *
+ * Returns one entry per offending placeholder, empty when the subject is stable.
+ */
+export function subjectThreadingRisks(
+  subjectTemplate: string,
+): { token: string; because: string }[] {
+  return Object.entries(SUBJECT_THREAD_RISKS)
+    .filter(([token]) => subjectTemplate.includes(token))
+    .map(([token, because]) => ({ token, because }));
+}
+
 /** Which placeholders a piece of wording actually uses, for the editor's help text. */
 export function placeholdersUsed(template: string): string[] {
   return MAIL_PLACEHOLDERS.filter((p) => template.includes(p.token)).map((p) => p.token);

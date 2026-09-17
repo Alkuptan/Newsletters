@@ -137,6 +137,13 @@ export function unitToNewsletterView(unit: UnitDetail, options: ToViewOptions): 
       }),
       concernsOverride: (unit.concerns_override as string[] | null) ?? null,
       stageOverride: (unit.stage_override as Stage | null) ?? null,
+      // Checked rather than assumed: PostgREST returns this `numeric` as a JSON
+      // number, so it arrives already typed. Written back and read again it
+      // came out as 73.5, typeof number. Worth knowing, because a string here
+      // would fail the aggregate's `typeof === "number"` test and silently
+      // behave as "no override" — a wrong figure on a client's page with
+      // nothing on screen to explain it.
+      pocOverridePercent: unit.poc_override,
     },
     quotations: included.map((q) => toQuotationFigures(q, unit.assigned_pm)),
     ganttRows: toGanttRows(unit, includedIds),

@@ -27,6 +27,7 @@ import { canWriteUnit } from "./permissions";
 import { currentPmAliases } from "./queries";
 import {
   setConcernsSchema,
+  setPocSchema,
   setQuotationIncludedSchema,
   setUnitClientsSchema,
   updateUnitSchema,
@@ -153,6 +154,43 @@ export async function setUnitConcerns(input: unknown): Promise<Result<null>> {
     if (error) throw error;
 
     revalidatePath(`/units/${id}`);
+    return toResult(null);
+  } catch (err) {
+    return fromError(err);
+  }
+}
+
+/**
+ * Set the progress figure the newsletter shows for a unit, or hand it back to
+ * the sheet with `null`.
+ *
+ * Revalidates more than the unit page, unlike its neighbours here: this figure
+ * is also printed on the unit list and counted on the dashboard, and a list
+ * showing 62% next to a newsletter showing 80% is the kind of disagreement that
+ * gets the whole tool distrusted.
+ */
+export async function setUnitPoc(input: unknown): Promise<Result<null>> {
+  try {
+    const parsed = setPocSchema.safeParse(input);
+    if (!parsed.success) {
+      throw new ValidationError(parsed.error.issues, parsed.error.issues[0]?.message);
+    }
+    const { id, pocPercent } = parsed.data;
+
+    const { supabase } = await assertCanWriteUnit(id);
+    await checkEditRate(supabase);
+
+    const { error } = await supabase
+      .from("units")
+      // Rounded to the two decimals the column holds, so what is read back
+      // equals what was sent and the editor does not look unsaved forever.
+      .update({ poc_override: pocPercent === null ? null : Math.round(pocPercent * 100) / 100 })
+      .eq("id", id);
+    if (error) throw error;
+
+    revalidatePath(`/units/${id}`);
+    revalidatePath("/units");
+    revalidatePath("/");
     return toResult(null);
   } catch (err) {
     return fromError(err);

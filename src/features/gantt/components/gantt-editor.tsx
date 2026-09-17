@@ -17,19 +17,20 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LAYOUT } from "@/lib/newsletter/layout";
+import { comfortableBarCount } from "@/lib/newsletter/gantt-geometry";
 import { shiftActivityDates } from "@/lib/newsletter/schedule-shift";
 import { deleteGanttSchedule, saveGanttSchedule } from "../actions";
 import { saveGanttScheduleSchema, type GanttTone } from "../schema";
 
 /**
- * How many bars the chart shows at its comfortable spacing. Derived from the
- * layout rather than guessed, so it follows if the panel's size changes.
+ * How many bars the chart shows at its comfortable spacing.
+ *
+ * Asked of the geometry rather than re-derived here. This was a local sum over
+ * the panel height and the bar gap, which quietly went wrong the moment the
+ * spacing changed in `gantt-geometry.ts` — it warned at nine bars while the
+ * chart was comfortable to twelve.
  */
-const COMFORTABLE_BARS = Math.floor(
-  (LAYOUT.withSchedule.ganttPanel.maxHeight - 16) /
-    (LAYOUT.withSchedule.barHeight + 11),
-);
+const COMFORTABLE_BARS = comfortableBarCount();
 
 interface ActivityDraft {
   name: string;
@@ -213,7 +214,9 @@ export function GanttEditor({
 
       {copyOpen && (
         <div className="bg-muted/40 space-y-2 rounded border p-2">
-          <p className="text-xs font-medium">Copy a schedule and move it to this unit&apos;s dates</p>
+          <p className="text-xs font-medium">
+            Copy a schedule and move it to this unit&apos;s dates
+          </p>
           <div className="space-y-1">
             <Label htmlFor={`copy-src-${quotationId}`} className="text-xs">
               Copy from

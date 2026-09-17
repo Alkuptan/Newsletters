@@ -96,6 +96,24 @@ export const setConcernsSchema = z.object({
 });
 export type SetConcernsInput = z.infer<typeof setConcernsSchema>;
 
+/**
+ * The owner's own progress figure for a unit, or `null` to follow the sheet.
+ *
+ * A percent, 0–100, matching what the newsletter prints — not the 0–1 fraction
+ * the sheet's `Progress` column uses. Zero is a real answer ("nothing has
+ * started") and must be storable, which is why `null` and not zero means
+ * "follow the sheet".
+ */
+export const setPocSchema = z.object({
+  id: z.guid(),
+  pocPercent: z
+    .number()
+    .min(0, "Progress cannot be below 0%.")
+    .max(100, "Progress cannot be above 100%.")
+    .nullable(),
+});
+export type SetPocInput = z.infer<typeof setPocSchema>;
+
 /** Ticking or unticking one quotation. */
 export const setQuotationIncludedSchema = z.object({
   quotationId: z.guid(),

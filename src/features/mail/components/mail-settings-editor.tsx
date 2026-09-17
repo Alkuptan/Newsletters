@@ -18,7 +18,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { MAIL_PLACEHOLDERS, fillTemplate, unknownPlaceholders } from "@/lib/newsletter/mail";
+import {
+  MAIL_PLACEHOLDERS,
+  fillTemplate,
+  subjectThreadingRisks,
+  unknownPlaceholders,
+} from "@/lib/newsletter/mail";
 import { deletePmRouting, saveMailSettings, savePmRouting } from "../actions";
 import { saveMailSettingsSchema, savePmRoutingSchema, splitAddresses } from "../schema";
 import type { MailSettings, PmRoutingRule } from "../queries";
@@ -56,6 +61,8 @@ export function MailSettingsEditor({
   const [newCc, setNewCc] = useState("");
 
   const unknown = [...new Set([...unknownPlaceholders(subject), ...unknownPlaceholders(body)])];
+  // Why this subject will not hold a thread together, if it will not.
+  const threadRisks = subjectThreadingRisks(subject);
   // Shown at half scale: the preview box is narrower than a real reading pane.
   const previewWidth = Math.max(80, (Number(imageWidth) || 500) / 2);
   const withoutRules = pmNames.filter(
@@ -143,6 +150,21 @@ export function MailSettingsEditor({
             onChange={(event) => setSubject(event.target.value)}
             className="h-8"
           />
+          {/*
+            Outlook decides what belongs to a conversation from the subject, so a
+            subject that changes between cycles quietly starts a new thread every
+            time — and the "send in thread" macro, which looks for the last email
+            with this subject, then finds nothing and opens a new message. The
+            symptom appears in Outlook weeks later and looks nothing like a
+            setting on this screen, so it is said here.
+          */}
+          {threadRisks.length > 0 && (
+            <p className="text-xs text-amber-700 dark:text-amber-400">
+              This subject will not keep each unit&apos;s newsletters in one email thread:{" "}
+              {threadRisks.map((risk) => `${risk.token} ${risk.because}`).join("; ")}. Move it into
+              the message below to keep the thread.
+            </p>
+          )}
         </div>
 
         <div className="space-y-1">

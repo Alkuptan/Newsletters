@@ -88,6 +88,7 @@ async function scoreUnits(filters: UnitListFilters) {
     const figures = aggregateQuotations(
       included.map((q) => toQuotationFigures(q, unit.assigned_pm)),
       asOf,
+      { pocOverridePercent: unit.poc_override },
     );
 
     const drift = findScheduleDrift(

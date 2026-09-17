@@ -65,6 +65,8 @@ export interface UnitOverrides {
   /** Replaces the bullets derived from the sheet's Notes, when set. */
   concernsOverride?: string[] | null;
   stageOverride?: Stage | null;
+  /** Shown instead of the sheet's money-weighted progress, when set. */
+  pocOverridePercent?: number | null;
 }
 
 export interface BuildNewsletterInput {
@@ -89,7 +91,9 @@ export function hasTimeSchedule(ganttRows: readonly GanttRow[]): boolean {
 
 /** Assemble everything the renderer needs. */
 export function buildNewsletterView(input: BuildNewsletterInput): NewsletterView {
-  const figures = aggregateQuotations(input.quotations, input.footerDate);
+  const figures = aggregateQuotations(input.quotations, input.footerDate, {
+    pocOverridePercent: input.unit.pocOverridePercent,
+  });
   const ganttRows = (input.ganttRows ?? []).filter((row) => row.activities.length > 0);
 
   const derivedConcerns = areaOfConcernBullets(input.quotations.map((q) => q.notes));

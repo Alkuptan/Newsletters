@@ -1134,3 +1134,175 @@ loses focus rather than per keystroke, so typing "Patch 2" does not create "P",
 checked against the dev stack, including that a design change survives a reload with
 no Save pressed, and that the signature and the new greeting both reach the built
 message file.
+
+## Batch thirteen — the Gantt chart's crowding, and labels that sat off their bars
+
+Reported from real use on a second machine: the bars and their text were not
+aligned, a long schedule had bars running into each other, and there was too much
+empty space between bars.
+
+All three were real, and the first was true even on a short schedule. Measured
+before touching anything, on a single-row schedule at the default sizes:
+
+| bars | gap between bars | what happened               |
+| ---- | ---------------- | --------------------------- |
+| 3–8  | 11.0px           | more air than bar           |
+| 25   | 1.7px            | on the edge                 |
+| 30   | 0.4px            | labels overlapping          |
+| 40   | −1.2px           | bars themselves overlapping |
+
+**The cause was two floors that ignored the space available.** The bar height
+could not go below 6px and the label scale could not go below 0.7, while the slot
+each bar owns kept shrinking with the schedule's length. Past about thirty bars
+both were larger than the slot they sat in, so the chart drew over itself. The
+slot is now the single constraint both are cut from, and neither can exceed it —
+pinned by tests at 1, 2, 5, 10, 12, 15, 20, 25, 30, 40, 60 and 100 bars, and at
+six different label sizes, because the owner can change those on the Design screen
+and fitting against the default would have put the overlap straight back.
+
+**The labels never sat on their bars.** Both renderers nudged the text up from the
+bar's top by a fixed amount — `-3` in the preview, `-4` in the exporter — tuned
+for a full-height bar. At the default size the date rode 4px high; as the bars
+thinned it drifted further. The two also disagreed with each other by a pixel,
+which is precisely what `gantt-geometry.ts` exists to prevent. Each label is now
+centred in a box exactly one slot tall, computed once and used by both.
+
+**A bar starting in the first month had its date drawn over the scope band.** The
+date label's box was given a 34px minimum width, which pushed it out under the bar
+it was labelling. When there is no room before the bar the date now goes after it,
+with the activity name after that.
+
+**Smaller and closer, as asked:** bars 13px → 11px, bar labels 10pt → 9pt, and the
+gap between bars 11px → 5px. Together those fit **12 bars at full size where 8 fit
+before**, and a six-bar schedule's panel drops from 160px to 106px — which the page
+gives straight back to the photos.
+
+**The warning that was supposed to prevent all this did not work.** The schedule
+editor warns above a comfortable number of bars, but it re-derived that number
+from its own copy of the panel height and bar gap rather than asking the geometry.
+`comfortableBars` was computed and returned by the geometry and read by nobody.
+Both now come from one exported function; the editor would otherwise have warned
+at nine bars while the chart was comfortable to twelve.
+
+Past cycles are unaffected in their wording and sizes — a snapshot freezes its own
+theme — but they do re-render with the new bar geometry, which is the point.
+
+`pnpm verify` green with **340 tests** (332 before, plus 8 pinning the above).
+
+## Batch fourteen — why the newsletter never continued the thread
+
+Reported alongside the Gantt: the "Send newsletter in thread" macro opens a new
+message instead of replying. It was written but, as its own README said, never
+run against a real mailbox.
+
+The macro replies to whatever it finds in Sent Items with the same subject, so
+"it opened a new message" always means **that search found nothing**. Three
+reasons it could, in the order they are worth checking:
+
+**The subject line is not the same every cycle.** Outlook has no other way to
+know two emails belong together, and `{date}` is offered as a placeholder with
+nothing stopping it being used in the Subject. A subject reading
+"… Newsletter — 14 June 2026" is a different subject every cycle, so nothing ever
+matches and every newsletter starts its own conversation. `{client}`,
+`{firstname}` and `{pm}` do the same whenever those change, and a corrected unit
+display name breaks it once. The Mail settings screen now says so, per
+placeholder, as soon as one is typed into the Subject.
+
+**The search walked the wrong end of the mailbox.** It read the first 3,000 items
+of Sent Items after calling `Items.Sort` — but where that sort does not take
+effect the walk examines the OLDEST 3,000, and a mailbox with years of mail never
+reaches last month's newsletter. It now asks the store to do the matching
+(`Items.Restrict` on a DASL subject filter), which is indexed, has no cap and
+does not depend on the order at all.
+
+**It only looked in the default account.** Sent mail filed in a second or shared
+mailbox was invisible. It now searches every account's Sent Items and reports how
+many it found.
+
+**And it no longer fails silently.** Falling back to a new message with no
+explanation is what made this undiagnosable — the macro looked like it had done
+nothing. It now says which subject it searched for, how many folders it looked
+in, and what to check, before offering to open the new message anyway. A second
+macro, `NewsletterThreadCheck`, reports the same in one box without composing
+anything, and lists the recent newsletter subjects it CAN see — which is usually
+enough to spot the subject that changed.
+
+**Not verified from here, and it cannot be:** the macro needs a real Outlook and a
+real mailbox. What is verified is the app side — `pnpm verify` green with **345
+tests**, five of them pinning the subject-line warning. The macro changes are
+reasoned from its own failure mode; run `NewsletterThreadCheck` once and its
+report will say which of the three it was.
+
+## 13 September 2026 — the newsletters actually thread now
+
+`NewsletterThreadCheck` never got to run. Driving Outlook read-only over COM from
+PowerShell answered it faster, and the answer was none of the three the macro
+was rewritten to distinguish: **the macro had never been installed**, it has no
+double-click hook so opening the file could never have triggered it, and —
+decisively — classic Outlook's offline file had stopped syncing. Sent Items held
+1,934 items and **nothing after 28 March 2026**; the Inbox stopped on
+1 August. 38.24 GB, and Outlook had recorded the file as corrupt. The macro's
+search logic was correct all along; it was searching an empty cupboard.
+
+So the macro is superseded rather than fixed. The tool now writes the real
+`In-Reply-To`/`References` headers into the message file, which is what every
+mail client actually threads on, and what `Thread-Topic` only pretended to do.
+
+What made it possible: the Microsoft 365 connector is authorised for this
+account, and **PMOTeam is CC'd on every newsletter** — so that mailbox already
+holds each one with its `Message-ID`. It reads Microsoft's servers, so the broken
+local file is irrelevant.
+
+- `0018_thread_replies.sql` — `units.thread_message_id` / `thread_message_at`,
+  the id shape-checked in the database as well as in the tool.
+- `eml.ts` — the id is **validated, not escaped**: a malformed one sends
+  perfectly and quietly starts a new thread, which is the exact bug being fixed.
+- `scripts/import-thread-ids.mjs` — matches exactly and **names what it cannot
+  match**. `Ancient Sands 192A` and `192B` are different clients.
+- The unit page now says, before you press the button, whether this one will
+  continue the thread or start a new one.
+
+`pnpm verify` green with **359 tests**, 14 of them new and most covering the ways
+a Message-ID can be wrong. Eleven units are anchored from real sent mail — the
+matcher handled a `Newletter` typo, a lowercase `villa` and a name with a slash.
+
+**Still to confirm:** whether Outlook carries those headers from a file through
+to sending. One real send, read back through the connector, settles it.
+
+## 17 September 2026 — the owner chooses the progress figure
+
+The newsletter's progress came from the sheet, money-weighted across the ticked
+quotations. That is the right default and regularly not what the owner would
+tell a client: the sheet lags the site, a row can read 100% with a snag list
+open, and one badly-kept quotation drags a whole unit down.
+
+Now each unit can carry the owner's own percentage, with **both figures on
+screen** and a choice of which the newsletter prints. Deliberately the same
+bargain Area of Concern already makes — the sheet's value stays visible, and
+when the two drift 5 points or more apart the unit page says so, because an
+override typed in August and still printing in December is otherwise invisible.
+
+- `0019_poc_override.sql` — `units.poc_override`, a percent with a 0–100 CHECK,
+  NULL meaning follow the sheet.
+- Stored as a **percent**, not the sheet's 0–1 fraction: the owner types what
+  the newsletter prints, and "0.62" where 62 was meant would be a silent
+  factor-of-a-hundred error on a client's page.
+- Autosaved, 900ms debounce, the same as the Design screen. No Save button.
+- Passed at **all four** call sites — newsletter, unit list, dashboard, What
+  changed — so no screen disagrees with the page it links to.
+
+**The Status pill follows the chosen figure; completion does not.** The ring and
+the pill are inches apart in print, so a verdict computed from the sheet while
+the ring showed the owner's figure would contradict itself. Completion stays a
+fact about the work: it drives whether photos are needed and the dashboard's
+Complete count, so typing 100 does not close a unit. Both are pinned by tests.
+
+Verified in the running app, not just by tests: typed 80 against a sheet figure
+of 36, and the dial moved to 80%, the pill turned AHEAD, the drift warning
+appeared, and "Go back to the sheet's figure" put all three back.
+
+**One bug found by doing that and fixed.** The number box started out disabled
+until the radio was chosen, so clicking the box — the obvious action — silently
+did nothing. Typing in it now makes the choice.
+
+`pnpm verify` green with **372 tests**, 13 of them new.

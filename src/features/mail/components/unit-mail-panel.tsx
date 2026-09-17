@@ -21,6 +21,7 @@ import type { NewsletterView } from "@/lib/newsletter/view-model";
 import { mailtoLink, outlookWebComposeLink, type SendHistory } from "@/lib/newsletter/outlook";
 import { withoutImageMarker } from "@/lib/newsletter/mail";
 import { setUnitSent } from "@/features/units/patch-actions";
+import { formatFooterDate } from "@/lib/newsletter/dates";
 
 function CopyButton({
   label,
@@ -92,6 +93,8 @@ export function UnitMailPanel({
   history,
   imageWidthPx,
   signature,
+  threadMessageId,
+  threadMessageAt,
   canEdit,
 }: {
   mail: PreparedMail;
@@ -108,6 +111,13 @@ export function UnitMailPanel({
   imageWidthPx: number;
   /** Appended to the prepared message, since Outlook will not add it. */
   signature: string;
+  /**
+   * The last newsletter's Message-ID, which makes this one a reply in the same
+   * thread. Null for a unit that has never been sent — it then starts a thread.
+   */
+  threadMessageId: string | null;
+  /** When that message was sent, so a stale anchor is visible rather than silent. */
+  threadMessageAt: string | null;
   canEdit: boolean;
 }) {
   const [body, setBody] = useState(mail.body);
@@ -152,8 +162,13 @@ export function UnitMailPanel({
         body, // with the marker: it decides where the picture goes
         imageWidthPx,
         signature,
+        inReplyTo: threadMessageId ?? undefined,
       });
-      toast.success("Message downloaded. Open it and Outlook will show it ready to send.");
+      toast.success(
+        threadMessageId
+          ? "Message downloaded. Open it and Outlook will show it ready to send, in the client's existing thread."
+          : "Message downloaded. Open it and Outlook will show it ready to send.",
+      );
     } catch (error) {
       // Rendering can fail on a photo that will not load; saying which step broke
       // is more use than a silent no-op on a button that looked like it worked.
@@ -286,6 +301,27 @@ export function UnitMailPanel({
           newsletter in the body, the PDF attached — and you press Send. It goes from your own
           mailbox, with your signature.
         </p>
+
+        {/*
+          Which of the two this unit gets is worth saying BEFORE the button is
+          pressed, not after. "It started a new thread again" is the complaint
+          this feature exists to answer, and the reason is always the same one:
+          no previous message is on record for this unit.
+        */}
+        {threadMessageId ? (
+          <p className="text-muted-foreground text-xs">
+            <strong>This will continue the client&apos;s existing thread.</strong> It is sent as a
+            reply to the last newsletter for this unit
+            {threadMessageAt ? `, sent ${formatFooterDate(new Date(threadMessageAt))}` : ""}, so the
+            client sees one conversation rather than a new email each cycle.
+          </p>
+        ) : (
+          <p className="text-muted-foreground text-xs">
+            <strong>This will start a new thread.</strong> No previous newsletter is on record for
+            this unit, so there is nothing to reply to. That is correct the first time a unit goes
+            out; if this unit has been sent before, its last message has not been picked up yet.
+          </p>
+        )}
 
         <details className="text-xs">
           <summary className="text-muted-foreground cursor-pointer">

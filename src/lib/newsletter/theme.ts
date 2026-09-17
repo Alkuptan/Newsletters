@@ -64,8 +64,12 @@ export const TEXT_DEFAULTS = {
   elapsedValue: 28,
   ganttYear: 11,
   ganttMonth: 12,
-  ganttBarLabel: 10,
-  ganttBarName: 10,
+  // Smaller than the 10 taken from the original slide, at the owner's request:
+  // the bar labels are the densest text on the page, and dropping a point lets
+  // noticeably more of a long schedule stay at full size. Only NEW newsletters
+  // move — a past cycle re-renders from the theme frozen in its snapshot.
+  ganttBarLabel: 9,
+  ganttBarName: 9,
   ganttBand: 11,
   stageLabel: 14,
   footer: 13,

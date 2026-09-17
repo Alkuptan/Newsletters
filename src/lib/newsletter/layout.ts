@@ -122,8 +122,18 @@ export const LAYOUT = {
     ganttPanel: { y: 144, maxHeight: 208, minHeight: 76 },
     /** The vertical band on the panel's left naming the scope. */
     band: { width: 44 },
-    barHeight: 13,
-    barGap: 9,
+    /**
+     * The tallest a bar is drawn. Thinner than the 13 taken from the original
+     * slide: the owner asked for smaller bars sitting closer together, and a
+     * shorter bar also means more of a long schedule fits before the spacing has
+     * to be squeezed at all.
+     *
+     * The gap between bars is NOT here — it belongs with the fitting maths in
+     * `gantt-geometry.ts`, which is the only thing that can honour it. A `barGap`
+     * sat here for months while the geometry used its own hardcoded number, so
+     * changing this one moved nothing.
+     */
+    barHeight: 11,
     stageTrack: { y: 372, height: 88 },
     photos: { y: 464, height: 200, gap: 14 },
   },

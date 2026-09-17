@@ -12,29 +12,37 @@
 
 import { formatBarRange, monthShortName } from "./dates";
 import { LAYOUT } from "./layout";
+import { TEXT_DEFAULTS } from "./theme";
 import type { GanttRow } from "./view-model";
 
-function daysInMonth(year: number, month: number): number {
-  return new Date(year, month + 1, 0).getDate();
-}
-
-/** Whole months since January of `baseYear`. */
-function monthIndex(date: Date, baseYear: number): number {
-  return (date.getFullYear() - baseYear) * 12 + date.getMonth();
-}
+/**
+ * The gap between one bar and the next when the schedule is short enough to be
+ * laid out comfortably.
+ *
+ * This used to be 11, which put nearly as much air between the bars as the bars
+ * themselves had height — a five-bar schedule read as a sparse list rather than
+ * a chart, and a long one hit the panel's ceiling far sooner than it needed to.
+ */
+const PREFERRED_BAR_GAP = 5;
 
 /**
- * A date's position along the ruler, measured in month columns.
+ * The gap kept between two bars however long the schedule gets.
  *
- * Month columns are equal width, as in the supplied templates, so a date is
- * placed by how far into its own month it falls — the 16th of a 30-day month
- * sits half a column in. Using raw day counts instead would let a 28-day
- * February push every later bar out of line with the ruler above it.
+ * Small, but never zero: bars that touch read as one long bar, which misstates
+ * the schedule rather than merely looking cramped.
  */
-function columnPosition(date: Date, baseYear: number, firstMonth: number): number {
-  const fraction = (date.getDate() - 1) / daysInMonth(date.getFullYear(), date.getMonth());
-  return monthIndex(date, baseYear) - firstMonth + fraction;
-}
+const MIN_BAR_GAP = 2;
+
+/** Space above and below each quotation's block of bars. */
+const ROW_PADDING = 10;
+
+/**
+ * The line box a label occupies, as a multiple of its font size.
+ *
+ * Must match the `lineHeight` both renderers set, or the fitting below is
+ * computed against a box neither of them actually draws.
+ */
+export const GANTT_LINE_HEIGHT = 1.15;
 
 export interface MonthColumn {
   label: string;
@@ -54,9 +62,44 @@ export interface PlacedActivity {
   barWidth: number;
   barY: number;
   barHeight: number;
-  /** The date label's box: right-aligned, ending just before the bar. */
+  /**
+   * The bar's middle. Both labels are centred on this rather than nudged up
+   * from `barY` by a fixed amount — see `textY`.
+   */
+  barCentreY: number;
+  /**
+   * The box both labels are drawn in, centred on the bar and exactly one slot
+   * tall, so a label can never reach into its neighbour's row.
+   *
+   * The renderers centre their text vertically inside it. They used to place it
+   * at `barY - 3` (preview) and `barY - 4` (exporter) — two fixed nudges tuned
+   * for a full-height bar, which left the text riding high even at the default
+   * size and drifting further as the bars thinned. The two also disagreed with
+   * each other by a pixel, which is precisely what this file exists to prevent.
+   */
+  textY: number;
+  textHeight: number;
+  /** The date label's box: normally right-aligned, ending just before the bar. */
   labelX: number;
   labelWidth: number;
+  /**
+   * True when the date had to move to the RIGHT of the bar, because the bar
+   * starts too early in the chart to leave room before it.
+   *
+   * A bar beginning in the first month has almost nothing between it and the
+   * scope band, and the date was drawn over the band — legible on neither. It
+   * goes after the bar instead, with the activity name after that, which is the
+   * only place on the row it fits. The renderers left-align it in that case.
+   */
+  labelAfterBar: boolean;
+  /**
+   * Whether the date label must stay on one line.
+   *
+   * Wrapping is only safe when the slot is tall enough for two lines. Below
+   * that a wrapped label is taller than its own slot and lands on the bar above
+   * — the crowding this whole module is meant to avoid.
+   */
+  labelNoWrap: boolean;
   /** The activity name's box, after the bar. */
   nameX: number;
   nameWidth: number;
@@ -87,13 +130,49 @@ export interface GanttGeometry {
    */
   comfortableBars: number;
   /**
-   * How much to shrink the bar labels, 0.7–1.
+   * How much to shrink the bar labels, 0–1.
    *
-   * The bars thin when a schedule is too long for the panel; their labels have
-   * to thin with them or the text runs into the row above.
+   * Derived from the space each bar actually has, so a label can never be taller
+   * than its own slot. It used to be floored at 0.7 regardless of the space
+   * available, which meant a schedule past about thirty bars drew 7px-tall text
+   * into a 6px slot — every label sitting on the one above it.
    */
   textScale: number;
+  /**
+   * True when the schedule no longer fits at a legible size — the labels are
+   * still separate, but small enough that the owner should be told rather than
+   * find out from an exported slide.
+   */
+  crowded: boolean;
 }
+
+/**
+ * How many bars fit at the comfortable spacing — the point past which they start
+ * to thin.
+ *
+ * Exported so the schedule editor can warn BEFORE the owner exports a slide.
+ * The editor used to re-derive this from its own copy of the panel height and
+ * bar gap, which is exactly the drift this module exists to prevent: the two
+ * definitions disagreed the moment the spacing changed here.
+ */
+export function comfortableBarCount(
+  rowCount: number = 1,
+  maxHeight: number = LAYOUT.withSchedule.ganttPanel.maxHeight,
+): number {
+  const spaceForBars = maxHeight - rowCount * ROW_PADDING;
+  return Math.floor(spaceForBars / (LAYOUT.withSchedule.barHeight + PREFERRED_BAR_GAP));
+}
+
+/** The bar-label sizes the fitting is computed against. */
+export interface GanttTextSizes {
+  label: number;
+  name: number;
+}
+
+const DEFAULT_TEXT_SIZES: GanttTextSizes = {
+  label: TEXT_DEFAULTS.ganttBarLabel,
+  name: TEXT_DEFAULTS.ganttBarName,
+};
 
 /**
  * Lay out the whole chart for a panel of the given width.
@@ -119,6 +198,14 @@ export function layoutGantt(
    * that stops in August invites the obvious question.
    */
   coverRange?: { start: Date | null; finish: Date | null },
+  /**
+   * The label sizes this chart will actually be drawn at.
+   *
+   * Passed in rather than assumed, because the owner can change them on the
+   * Design screen. Fitting against the default while the newsletter renders at
+   * 16pt would put the overlap straight back.
+   */
+  textSizes: GanttTextSizes = DEFAULT_TEXT_SIZES,
 ): GanttGeometry | null {
   const activityDates = rows.flatMap((row) => row.activities.flatMap((a) => [a.start, a.finish]));
   if (activityDates.length === 0) return null;
@@ -129,7 +216,6 @@ export function layoutGantt(
   ];
 
   const { barHeight, band } = LAYOUT.withSchedule;
-  const rowPadding = 16;
 
   /**
    * The chart starts to the RIGHT of the scope-of-work band, and the ruler is
@@ -178,33 +264,39 @@ export function layoutGantt(
 
   /**
    * Bars sit a comfortable fixed distance apart, and the panel grows to suit.
-   * Only when the schedule is too long for `maxHeight` is that spacing squeezed —
-   * down to a floor that still keeps the bars legibly separate.
+   * Only when the schedule is too long for `maxHeight` is that spacing squeezed.
+   *
+   * The slot is the ONE constraint everything below derives from. Bar height and
+   * label size are both cut from it, so neither can ever be larger than the space
+   * its own bar owns. Deriving them independently — a bar floored at 6px, a label
+   * floored at 70% — is what let a long schedule draw bars and text straight
+   * through each other.
    */
   const totalBars = rows.reduce((sum, row) => sum + row.activities.length, 0);
-  const PREFERRED_SLOT = barHeight + 11;
-  const spaceForBars = maxHeight - rows.length * rowPadding;
-  // Below the preferred spacing the slot shrinks to fit, so the panel never
-  // exceeds its maximum and no bar is ever cut off. Past about ten bars the bars
-  // themselves have to thin out — the editor warns when a schedule gets there.
-  const barSlot = Math.min(PREFERRED_SLOT, spaceForBars / Math.max(totalBars, 1));
-  const MIN_BAR_HEIGHT = 6;
-  const effectiveBarHeight = Math.min(barHeight, Math.max(MIN_BAR_HEIGHT, Math.round(barSlot - 4)));
+  const preferredSlot = barHeight + PREFERRED_BAR_GAP;
+  const spaceForBars = maxHeight - rows.length * ROW_PADDING;
+  const barSlot = Math.min(preferredSlot, spaceForBars / Math.max(totalBars, 1));
+
+  /** Never taller than the slot it sits in, less the gap that keeps bars apart. */
+  const effectiveBarHeight = Math.max(1, Math.min(barHeight, barSlot - MIN_BAR_GAP));
 
   /**
-   * How much the bars had to thin, as a fraction of their full height.
-   *
-   * The labels scale by the same amount. Leaving them at full size while the
-   * bars halve is what made a long schedule unreadable — the text simply ran
-   * into the row above. Floored at 0.7 so a very long schedule stays legible
-   * rather than becoming decorative.
+   * Labels are fitted to the slot too, against whichever of the two is larger —
+   * fitting only the date label would let a bigger activity name overflow.
    */
-  const textScale = Math.max(0.7, Math.min(1, effectiveBarHeight / barHeight));
+  const largestText = Math.max(textSizes.label, textSizes.name);
+  const textScale = Math.max(
+    0,
+    Math.min(1, barSlot / GANTT_LINE_HEIGHT / Math.max(largestText, 0.001)),
+  );
+
+  /** Two lines only fit when the slot is tall enough to hold them. */
+  const labelNoWrap = barSlot < 2 * largestText * textScale * GANTT_LINE_HEIGHT;
 
   /** How many bars fit at the comfortable spacing. */
-  const comfortableBars = Math.floor(spaceForBars / PREFERRED_SLOT);
+  const comfortableBars = comfortableBarCount(rows.length, maxHeight);
 
-  const rowHeights = rows.map((row) => row.activities.length * barSlot + rowPadding);
+  const rowHeights = rows.map((row) => row.activities.length * barSlot + ROW_PADDING);
   const contentHeight = rowHeights.reduce((sum, h) => sum + h, 0);
 
   const placedRows: PlacedGanttRow[] = rows.map((row, rowIndex) => {
@@ -218,26 +310,47 @@ export function layoutGantt(
         const barX = toX(activity.start);
         // A one-day activity still has to be visible.
         const barWidth = Math.max(toX(activity.finish) - barX, 10);
+        /** The top of this bar's own slot. */
+        const slotTop = rowTop + ROW_PADDING / 2 + index * barSlot;
         // Centred in its slice, so the spacing above and below each bar matches.
-        const barY =
-          rowTop +
-          rowPadding / 2 +
-          index * barSlot +
-          Math.max(0, (barSlot - effectiveBarHeight) / 2);
+        const barY = slotTop + Math.max(0, (barSlot - effectiveBarHeight) / 2);
+        const barCentreY = barY + effectiveBarHeight / 2;
+
+        const rangeLabel = formatBarRange(activity.start, activity.finish);
+
+        /**
+         * The date label normally ends just before the bar. It only fits there
+         * if the bar starts late enough to leave room — a bar beginning in the
+         * first month has the scope band almost immediately to its left, and
+         * the date used to be drawn over the band.
+         */
+        const labelFontSize = textSizes.label * textScale;
+        const wantedLabelWidth = estimateTextWidth(rangeLabel, labelFontSize);
+        const roomBeforeBar = barX - 5 - labelGutter;
+        const labelAfterBar = roomBeforeBar < wantedLabelWidth;
+
+        const labelX = labelAfterBar ? barX + barWidth + 6 : labelGutter;
+        const labelWidth = labelAfterBar ? wantedLabelWidth : roomBeforeBar;
+        const nameX = labelAfterBar ? labelX + labelWidth + 6 : barX + barWidth + 6;
 
         return {
           name: activity.name,
-          rangeLabel: formatBarRange(activity.start, activity.finish),
+          rangeLabel,
           tone: activity.tone,
           barX,
           barWidth,
           barY,
           barHeight: effectiveBarHeight,
-          labelX: labelGutter,
-          labelWidth: Math.max(barX - 5 - labelGutter, 34),
-          nameX: barX + barWidth + 6,
+          barCentreY,
+          textY: barCentreY - barSlot / 2,
+          textHeight: barSlot,
+          labelX,
+          labelWidth,
+          labelAfterBar,
+          labelNoWrap,
+          nameX,
           // Wrap inside the panel rather than running off its edge.
-          nameWidth: Math.max(width - (barX + barWidth + 12), 70),
+          nameWidth: Math.max(width - nameX - 8, 40),
         };
       }),
     };
@@ -256,5 +369,42 @@ export function layoutGantt(
     year: columns[0].year,
     comfortableBars,
     textScale,
+    crowded: totalBars > comfortableBars,
   };
+}
+
+/**
+ * Roughly how wide a run of text will be.
+ *
+ * Deliberately an estimate: the real width depends on the font the browser and
+ * PowerPoint each resolve, and neither can be measured from here. 0.55 of the
+ * font size per character is a little generous for the digits and short month
+ * names these labels are made of, and erring generous is the safe direction —
+ * it moves a tight label to the roomier side of the bar rather than leaving it
+ * squeezed against the band.
+ */
+function estimateTextWidth(text: string, fontSize: number): number {
+  return text.length * fontSize * 0.55;
+}
+
+function daysInMonth(year: number, month: number): number {
+  return new Date(year, month + 1, 0).getDate();
+}
+
+/** Whole months since January of `baseYear`. */
+function monthIndex(date: Date, baseYear: number): number {
+  return (date.getFullYear() - baseYear) * 12 + date.getMonth();
+}
+
+/**
+ * A date's position along the ruler, measured in month columns.
+ *
+ * Month columns are equal width, as in the supplied templates, so a date is
+ * placed by how far into its own month it falls — the 16th of a 30-day month
+ * sits half a column in. Using raw day counts instead would let a 28-day
+ * February push every later bar out of line with the ruler above it.
+ */
+function columnPosition(date: Date, baseYear: number, firstMonth: number): number {
+  const fraction = (date.getDate() - 1) / daysInMonth(date.getFullYear(), date.getMonth());
+  return monthIndex(date, baseYear) - firstMonth + fraction;
 }

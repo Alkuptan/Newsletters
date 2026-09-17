@@ -16,9 +16,15 @@
  *   involved.
  *
  * `Thread-Topic` is set to the unit's subject so Outlook files each unit's
- * newsletters under one conversation. That is grouping, not a reply chain: a real
- * reply needs the previous message's `Message-ID`, which only exists once
- * Exchange has actually sent something, and reading it back needs Graph.
+ * newsletters under one conversation. That is only GROUPING, and only inside
+ * Outlook — the client's own mail app ignores it.
+ *
+ * A real reply needs `In-Reply-To`/`References` carrying the previous message's
+ * `Message-ID`, which exists only once Exchange has actually sent something. The
+ * tool cannot read that back itself, so the id is captured outside and stored
+ * per unit (`units.thread_message_id`); pass it as `inReplyTo` and the message
+ * lands in the thread. Without one, the newsletter starts a new thread, which is
+ * what it always did.
  *
  * Pure and synchronous: takes already-encoded base64, returns the file's text.
  * Everything fiddly here is line endings, header encoding and boundaries, and all
@@ -53,6 +59,13 @@ export interface EmlMessage {
   attachments?: readonly EmlAttachment[];
   /** Stable per unit, so Outlook groups the conversation. Defaults to the subject. */
   threadTopic?: string;
+  /**
+   * The previous newsletter's `Message-ID`, which turns this from a new email
+   * into a genuine reply in the same thread.
+   *
+   * Ignored unless it is a well-formed `<token@token>` — see `messageIdOrNull`.
+   */
+  inReplyTo?: string;
   /** Caps the inline picture's width in the message body. */
   imageWidthPx?: number;
   /**
@@ -95,6 +108,32 @@ function encodeHeader(value: string): string {
 /** A header value cannot contain a newline: that would inject a header. */
 function safeHeader(value: string): string {
   return value.replace(/[\r\n]+/g, " ").trim();
+}
+
+/**
+ * A `Message-ID`, or nothing.
+ *
+ * Deliberately VALIDATED rather than escaped, which is the opposite of how every
+ * other header here is handled, for two reasons:
+ *
+ * - A malformed id does not fail loudly. The message sends, looks perfect, and
+ *   simply does not join the thread — the exact failure this whole feature
+ *   exists to fix, reappearing months later and blamed on something else.
+ * - It is the one header whose value comes from another system rather than from
+ *   the owner typing it, so it is the one worth refusing outright.
+ *
+ * `<token@token>` with no whitespace or angle brackets inside is the whole of
+ * RFC 5322's `msg-id` that matters here. Anything else is dropped, and the
+ * newsletter starts a new thread — which is what it did before this existed, so
+ * the failure is a return to the old behaviour rather than a broken message.
+ */
+function messageIdOrNull(value: string | undefined): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  // 998 is the RFC 5322 line-length ceiling; a longer header would be folded or
+  // rejected by a strict server.
+  if (trimmed.length > 998) return null;
+  return /^<[^<>\s]+@[^<>\s]+>$/.test(trimmed) ? trimmed : null;
 }
 
 function htmlEscape(text: string): string {
@@ -217,6 +256,7 @@ export function buildEml(message: EmlMessage): string {
   const related = "----newsletter-related-boundary";
 
   const attachments = message.attachments ?? [];
+  const replyTo = messageIdOrNull(message.inReplyTo);
   const html = bodyHtml(
     message.body,
     message.inline?.contentId,
@@ -231,6 +271,19 @@ export function buildEml(message: EmlMessage): string {
       : []),
     `Subject: ${encodeHeader(safeHeader(message.subject))}`,
     `Thread-Topic: ${encodeHeader(safeHeader(message.threadTopic ?? message.subject))}`,
+    /*
+      What actually makes this a reply.
+
+      `Thread-Topic` above only makes Outlook GROUP the messages in its own
+      window; these two are what every mail client — including the client's,
+      which is the one that matters — uses to build a conversation.
+
+      `References` carries the same single id rather than the full chain. A
+      complete chain would be more correct, but the tool holds only the last
+      message, and a References naming one real ancestor threads correctly
+      everywhere. Claiming a chain we cannot verify would be worse.
+    */
+    ...(replyTo ? [`In-Reply-To: ${replyTo}`, `References: ${replyTo}`] : []),
     // Opens as an editable draft with a Send button rather than read-only.
     "X-Unsent: 1",
     "MIME-Version: 1.0",

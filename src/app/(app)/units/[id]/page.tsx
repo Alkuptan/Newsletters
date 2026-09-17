@@ -18,6 +18,7 @@ import {
   unitSentThisCycle,
 } from "@/features/units/queries";
 import { QuotationTickList } from "@/features/units/components/quotation-tick-list";
+import { PocEditor } from "@/features/units/components/poc-editor";
 import { UnitDetailsForm } from "@/features/units/components/unit-details-form";
 import { ClientEditor } from "@/features/units/components/client-editor";
 import { UnitMailPanel } from "@/features/mail/components/unit-mail-panel";
@@ -249,6 +250,18 @@ export default async function UnitPage({
 
           <QuotationTickList quotations={quotations} canEdit={canEdit} />
 
+          {/*
+            Under the quotation list on purpose: the sheet's figure is derived
+            from exactly those ticks, so the thing it is computed from is
+            directly above the choice about whether to use it.
+          */}
+          <PocEditor
+            unitId={unit.id}
+            sheetPercent={view.sheetProgressPercent}
+            savedOverride={unit.poc_override}
+            canEdit={canEdit}
+          />
+
           {canEdit && (
             <div className="space-y-2">
               <h2 className="text-sm font-semibold">Time schedules</h2>
@@ -343,6 +356,8 @@ export default async function UnitPage({
               history={sendHistoryFrom(sentDates)}
               imageWidthPx={mailSettings.imageWidthPx}
               signature={mailSettings.signature}
+              threadMessageId={unit.thread_message_id}
+              threadMessageAt={unit.thread_message_at}
               canEdit={canEdit}
             />
           </div>

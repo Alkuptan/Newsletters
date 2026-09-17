@@ -204,6 +204,76 @@ describe("things that would corrupt the message", () => {
   });
 });
 
+/**
+ * Continuing the client's existing thread.
+ *
+ * This is the part with no visible failure mode. A wrong or missing reply header
+ * still produces a message that sends, looks right, and reads correctly — it
+ * just quietly starts a new conversation, which is precisely the bug this
+ * exists to fix. Nobody notices for a cycle or more, and when they do it gets
+ * blamed on Outlook. So every way the id can be wrong is pinned down here.
+ */
+describe("replying into the existing thread", () => {
+  const PREVIOUS =
+    "<AM7PR07MB6216505018C229A107D3418EE9A02@AM7PR07MB6216.eurprd07.prod.outlook.com>";
+
+  it("writes both headers a mail client needs to build a conversation", () => {
+    const eml = buildEml({ ...message, inReplyTo: PREVIOUS });
+    expect(eml).toContain(`In-Reply-To: ${PREVIOUS}`);
+    expect(eml).toContain(`References: ${PREVIOUS}`);
+  });
+
+  it("still opens as a draft, so a reply is as sendable as a new message", () => {
+    // Threading headers and X-Unsent have to coexist: a perfect reply that
+    // Outlook opens read-only cannot be sent at all.
+    expect(buildEml({ ...message, inReplyTo: PREVIOUS })).toContain("X-Unsent: 1");
+  });
+
+  it("writes neither header when the unit has never been sent before", () => {
+    const eml = buildEml(message);
+    expect(eml).not.toMatch(/^In-Reply-To:/m);
+    expect(eml).not.toMatch(/^References:/m);
+  });
+
+  it("tolerates the id arriving with whitespace around it", () => {
+    expect(buildEml({ ...message, inReplyTo: `  ${PREVIOUS}\t` })).toContain(
+      `In-Reply-To: ${PREVIOUS}`,
+    );
+  });
+
+  describe("refuses an id that is not one, rather than writing it", () => {
+    // Each of these would either break threading silently or inject a header.
+    const rejected: Record<string, string> = {
+      "no angle brackets": "AM7PR07MB6216@example.com",
+      "no domain": "<AM7PR07MB6216>",
+      "empty string": "",
+      "only whitespace": "   ",
+      "a newline, which would inject a header": "<a@b.com>\r\nBcc: attacker@evil.com",
+      "a space inside": "<a b@example.com>",
+      "a nested angle bracket": "<a<b>@example.com>",
+      "the word Outlook shows when there is none": "(none)",
+    };
+
+    for (const [why, value] of Object.entries(rejected)) {
+      it(why, () => {
+        const eml = buildEml({ ...message, inReplyTo: value });
+        expect(eml).not.toMatch(/^In-Reply-To:/m);
+        expect(eml).not.toMatch(/^References:/m);
+      });
+    }
+
+    it("never lets an injected header reach the file", () => {
+      const eml = buildEml({ ...message, inReplyTo: "<a@b.com>\r\nBcc: attacker@evil.com" });
+      expect(eml).not.toContain("attacker@evil.com");
+    });
+
+    it("drops an id too long to be a legal header line", () => {
+      const tooLong = `<${"x".repeat(1000)}@example.com>`;
+      expect(buildEml({ ...message, inReplyTo: tooLong })).not.toMatch(/^In-Reply-To:/m);
+    });
+  });
+});
+
 describe("the file name", () => {
   it("keeps the unit's name and adds the extension", () => {
     expect(emlFileName("Ancient Hill 56 Newsletter")).toBe("Ancient Hill 56 Newsletter.eml");

@@ -126,6 +126,15 @@ export function deserialiseNewsletter(
       finishDate: s.finishDate ? fromIsoDate(s.finishDate) : null,
       durationDays: s.durationDays,
       progressPercent: s.progressPercent,
+      /*
+        A snapshot records the figure that was PRINTED, not which of the two it
+        came from — and it does not need to. Neither of these is rendered: they
+        exist so the unit page can show the owner both figures while they
+        choose. A frozen cycle is not being chosen any more, so the printed
+        figure stands as its own sheet value and nothing claims an override.
+      */
+      sheetProgressPercent: s.progressPercent,
+      progressIsOverridden: false,
       elapsedDays: s.elapsedDays,
       elapsedPercent: s.elapsedPercent,
       // Older snapshots predate these; default rather than refuse to render.

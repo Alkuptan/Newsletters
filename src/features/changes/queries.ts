@@ -70,7 +70,7 @@ export async function loadChanges(
   const { data, error } = await supabase
     .from("units")
     .select(
-      `id, unit_code, display_name, assigned_pm, patch, concerns_override,
+      `id, unit_code, display_name, assigned_pm, patch, concerns_override, poc_override,
        quotations ( id, quote_number, include_in_newsletter, invoice_value, progress,
                     scope_of_work, planned_start_date, max_contractual_date,
                     project_status, notes,
@@ -93,6 +93,7 @@ export async function loadChanges(
     const figures = aggregateQuotations(
       ticked.map((q) => toQuotationFigures(q, row.assigned_pm)),
       asOf,
+      { pocOverridePercent: row.poc_override },
     );
 
     const now: ComparableFigures = {
@@ -185,9 +186,7 @@ export async function loadChanges(
   );
 
   return {
-    comparedWith: previous
-      ? { label: previous.footer_label, date: previous.footer_date }
-      : null,
+    comparedWith: previous ? { label: previous.footer_label, date: previous.footer_date } : null,
     current: current ? { label: current.footer_label, date: current.footer_date } : null,
     units: ordered,
     scanned: (data ?? []).length,

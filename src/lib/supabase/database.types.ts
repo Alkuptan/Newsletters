@@ -631,8 +631,11 @@ export type Database = {
           patch: string | null;
           patch_changed_at: string | null;
           paused_until: string | null;
+          poc_override: number | null;
           schedule_plan: string | null;
           stage_override: Database["public"]["Enums"]["project_stage"] | null;
+          thread_message_at: string | null;
+          thread_message_id: string | null;
           unit_code: string;
           unit_key: string | null;
           updated_at: string;
@@ -654,8 +657,11 @@ export type Database = {
           patch?: string | null;
           patch_changed_at?: string | null;
           paused_until?: string | null;
+          poc_override?: number | null;
           schedule_plan?: string | null;
           stage_override?: Database["public"]["Enums"]["project_stage"] | null;
+          thread_message_at?: string | null;
+          thread_message_id?: string | null;
           unit_code: string;
           unit_key?: string | null;
           updated_at?: string;
@@ -677,8 +683,11 @@ export type Database = {
           patch?: string | null;
           patch_changed_at?: string | null;
           paused_until?: string | null;
+          poc_override?: number | null;
           schedule_plan?: string | null;
           stage_override?: Database["public"]["Enums"]["project_stage"] | null;
+          thread_message_at?: string | null;
+          thread_message_id?: string | null;
           unit_code?: string;
           unit_key?: string | null;
           updated_at?: string;

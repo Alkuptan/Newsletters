@@ -37,6 +37,7 @@ export default async function HomePage() {
     const figures = aggregateQuotations(
       ticked.map((q) => toQuotationFigures(q, unit.assigned_pm)),
       asOf,
+      { pocOverridePercent: unit.poc_override },
     );
     if (figures.isComplete) complete += 1;
     else if (photos === 0) needsPhotos += 1;
